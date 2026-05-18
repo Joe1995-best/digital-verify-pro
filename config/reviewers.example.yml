@@ -1,0 +1,23 @@
+# Reviewer Configuration
+# Per-user: gitignored
+
+reviewers:
+  gpt-4o:
+    enabled: true
+    role: primary
+    specialty: systemverilog, uvm, verification
+
+  claude:
+    enabled: true
+    role: secondary
+    specialty: test_completeness, edge_cases
+
+  kimi:
+    enabled: false
+    role: protocol_specialist
+    specialty: axi, apb, i2c, spi
+
+  qwen:
+    enabled: false
+    role: coverage_analyst
+    specialty: coverage_closure, corner_cases

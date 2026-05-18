@@ -1,0 +1,302 @@
+# I2C Controller Specification
+# APB Slave I2C master with multi-master support, clock stretching, 8-deep FIFO
+
+module:
+  name: "i2c"
+  description: "APB-based I2C master controller with configurable speed, 8-deep TX/RX FIFOs, interrupt, multi-master arbitration"
+  version: "1.0"
+
+clocks:
+  - name: "clk"
+    frequency: "50MHz"
+
+resets:
+  - name: "rstn"
+    polarity: "active_low"
+    async: true
+
+interfaces:
+  - name: "apb"
+    type: "APB"
+    direction: "slave"
+    data_width: 32
+    addr_width: 12
+    signals:
+      - { name: "psel",     width: 1,  direction: "input" }
+      - { name: "penable",  width: 1,  direction: "input" }
+      - { name: "pwrite",   width: 1,  direction: "input" }
+      - { name: "paddr",    width: 12, direction: "input" }
+      - { name: "pwdata",   width: 32, direction: "input" }
+      - { name: "prdata",   width: 32, direction: "output" }
+      - { name: "pready",   width: 1,  direction: "output" }
+      - { name: "pslverr",  width: 1,  direction: "output" }
+
+  - name: "i2c_bus"
+    type: "I2C"
+    direction: "both"
+    signals:
+      - { name: "scl",       width: 1,  direction: "bidir", desc: "I2C clock line (open-drain)" }
+      - { name: "sda",       width: 1,  direction: "bidir", desc: "I2C data line (open-drain)" }
+
+  - name: "interrupt"
+    type: "interrupt"
+    direction: "output"
+    signals:
+      - { name: "intr",      width: 1,  direction: "output", desc: "Interrupt request" }
+
+registers:
+  # Base address: 0x2000_0000
+
+  - name: "ctrl_reg"
+    offset: "0x00"
+    reset: "0x14"
+    description: "Control register"
+    fields:
+      - { name: "i2c_en",       bits: "[0]",   access: "rw",    reset: "0", desc: "I2C core enable" }
+      - { name: "irq_en",       bits: "[1]",   access: "rw",    reset: "0", desc: "Global interrupt enable" }
+      - { name: "master_mode",  bits: "[2]",   access: "rw",    reset: "1", desc: "1=master, 0=slave" }
+      - { name: "scl_stretch",  bits: "[3]",   access: "rw",    reset: "0", desc: "Enable clock stretching" }
+      - { name: "ack_gen",      bits: "[4]",   access: "rw",    reset: "1", desc: "ACK generation (master RX)" }
+      - { name: "reserved",     bits: "[31:5]", access: "ro",    reset: "0" }
+
+  - name: "speed_reg"
+    offset: "0x04"
+    reset: "0x3B"
+    description: "Speed control (SCL frequency = clk_freq / (2 * (div + 5)))"
+    fields:
+      - { name: "scl_div",      bits: "[15:0]", access: "rw",    reset: "0x3B", desc: "SCL divider: 100kHz=59, 400kHz=11, 1MHz=3" }
+      - { name: "reserved",     bits: "[31:16]",access: "ro",    reset: "0" }
+
+  - name: "cmd_reg"
+    offset: "0x08"
+    reset: "0x00"
+    description: "Command register (write-only)"
+    fields:
+      - { name: "start",        bits: "[0]",    access: "wo",    reset: "0", desc: "Generate START condition" }
+      - { name: "stop",         bits: "[1]",    access: "wo",    reset: "0", desc: "Generate STOP condition" }
+      - { name: "read",         bits: "[2]",    access: "wo",    reset: "0", desc: "Read from slave" }
+      - { name: "write",        bits: "[3]",    access: "wo",    reset: "0", desc: "Write to slave" }
+      - { name: "ack",          bits: "[4]",    access: "wo",    reset: "0", desc: "Send ACK after read" }
+      - { name: "nack",         bits: "[5]",    access: "wo",    reset: "0", desc: "Send NACK after read" }
+      - { name: "reserved",     bits: "[31:6]", access: "ro",    reset: "0" }
+
+  - name: "addr_reg"
+    offset: "0x0C"
+    reset: "0x00"
+    description: "Slave address register"
+    fields:
+      - { name: "slave_addr",   bits: "[9:0]",  access: "rw",    reset: "0", desc: "10/7 bit slave address (bit 9=R/W#)" }
+      - { name: "addr_10bit",   bits: "[10]",   access: "rw",    reset: "0", desc: "1=10bit addr, 0=7bit addr" }
+      - { name: "reserved",     bits: "[31:11]",access: "ro",    reset: "0" }
+
+  - name: "tx_data_reg"
+    offset: "0x10"
+    reset: "0x00"
+    description: "Transmit data register (write-only)"
+    fields:
+      - { name: "tx_data",      bits: "[7:0]",  access: "wo",    reset: "0", desc: "Data byte to transmit" }
+      - { name: "reserved",     bits: "[31:8]", access: "ro",    reset: "0" }
+
+  - name: "rx_data_reg"
+    offset: "0x14"
+    reset: "0x00"
+    description: "Receive data register (read-only)"
+    fields:
+      - { name: "rx_data",      bits: "[7:0]",  access: "ro",    reset: "0", desc: "Received data byte" }
+      - { name: "rx_nack",      bits: "[8]",    access: "ro",    reset: "0", desc: "NACK received flag" }
+      - { name: "rx_arb_lost",  bits: "[9]",    access: "ro",    reset: "0", desc: "Arbitration lost flag" }
+      - { name: "reserved",     bits: "[31:10]",access: "ro",    reset: "0" }
+
+  - name: "status_reg"
+    offset: "0x18"
+    reset: "0x36"
+    description: "Status register"
+    fields:
+      - { name: "busy",         bits: "[0]",    access: "ro",    reset: "0", desc: "I2C bus busy" }
+      - { name: "tx_full",      bits: "[1]",    access: "ro",    reset: "1", desc: "TX FIFO full" }
+      - { name: "tx_empty",     bits: "[2]",    access: "ro",    reset: "1", desc: "TX FIFO empty" }
+      - { name: "rx_full",      bits: "[3]",    access: "ro",    reset: "0", desc: "RX FIFO full" }
+      - { name: "rx_empty",     bits: "[4]",    access: "ro",    reset: "1", desc: "RX FIFO empty" }
+      - { name: "bus_free",     bits: "[5]",    access: "ro",    reset: "1", desc: "Bus free detection" }
+      - { name: "arb_lost",     bits: "[6]",    access: "ro",    reset: "0", desc: "Arbitration lost (sticky)" }
+      - { name: "reserved",     bits: "[31:7]", access: "ro",    reset: "0" }
+
+  - name: "fifo_ctrl_reg"
+    offset: "0x1C"
+    reset: "0x110"
+    description: "FIFO control register"
+    fields:
+      - { name: "tx_flush",     bits: "[0]",    access: "wo",    reset: "0", desc: "Write 1 to flush TX FIFO" }
+      - { name: "rx_flush",     bits: "[1]",    access: "wo",    reset: "0", desc: "Write 1 to flush RX FIFO" }
+      - { name: "tx_threshold", bits: "[5:2]",  access: "rw",    reset: "4", desc: "TX FIFO threshold" }
+      - { name: "rx_threshold", bits: "[9:6]",  access: "rw",    reset: "4", desc: "RX FIFO threshold" }
+      - { name: "reserved",     bits: "[31:10]",access: "ro",    reset: "0" }
+
+  - name: "intr_status_reg"
+    offset: "0x20"
+    reset: "0x00"
+    description: "Interrupt status (read to clear)"
+    fields:
+      - { name: "tx_intr",      bits: "[0]",    access: "ro",    reset: "0", desc: "TX interrupt pending" }
+      - { name: "rx_intr",      bits: "[1]",    access: "ro",    reset: "0", desc: "RX interrupt pending" }
+      - { name: "stop_det",     bits: "[2]",    access: "ro",    reset: "0", desc: "STOP condition detected" }
+      - { name: "arb_intr",     bits: "[3]",    access: "ro",    reset: "0", desc: "Arbitration lost interrupt" }
+      - { name: "reserved",     bits: "[31:4]", access: "ro",    reset: "0" }
+
+  # Address map:
+  # 0x00 - ctrl_reg        (RW)
+  # 0x04 - speed_reg       (RW)
+  # 0x08 - cmd_reg         (WO)
+  # 0x0C - addr_reg        (RW)
+  # 0x10 - tx_data_reg     (WO)
+  # 0x14 - rx_data_reg     (RO)
+  # 0x18 - status_reg      (RO)
+  # 0x1C - fifo_ctrl_reg   (RW/WO)
+  # 0x20 - intr_status_reg (RO)
+  # 0x24-0xFFC - reserved
+
+# ── I2C FSM configuration ──
+# Drives SCL/SDA timing and protocol engine
+fsm:
+  type: "i2c"
+  name: "i2c_fsm"
+  description: "I2C master controller FSM \u2014 SCL timing generation, SDA data control, START/STOP/ACK generation"
+  clocks: ["clk"]
+  resets: ["rstn"]
+  default_div: 59  # 100kHz = 50MHz / (2 * (59 + 5))
+  # I2C state definitions (9 states)
+  states:
+    - { name: "Idle",      value: 0, desc: "Bus idle, SCL=1, SDA=1" }
+    - { name: "Start",     value: 1, desc: "Generate START condition (SDA\u2193 while SCL\u2191)" }
+    - { name: "Address",   value: 2, desc: "Transmit slave address + R/W bit" }
+    - { name: "AckAddr",   value: 3, desc: "Wait for address ACK from slave" }
+    - { name: "DataTx",    value: 4, desc: "Transmit data byte (MSB first)" }
+    - { name: "AckData",   value: 5, desc: "Wait for data ACK from slave" }
+    - { name: "DataRx",    value: 6, desc: "Receive data byte from slave" }
+    - { name: "AckMaster", value: 7, desc: "Master sends ACK/NACK after RX" }
+    - { name: "Stop",      value: 8, desc: "Generate STOP condition (SDA\u2191 while SCL\u2191)" }
+  # Key timing parameters
+  params:
+    scl_freq: "100kHz"       # Default SCL frequency
+    scl_high_cycles: 100     # SCL high phase = cycles/2
+    scl_low_cycles: 100      # SCL low phase = cycles/2
+    sda_setup_cycles: 5      # SDA setup before SCL posedge
+    sda_hold_cycles: 5       # SDA hold after SCL negedge
+  # State transition conditions
+  transitions:
+    - { from: "Idle",      to: "Start",   cond: "start_q && idle", desc: "SW writes start bit" }
+    - { from: "Start",     to: "Address",  cond: "scl_cnt == SCL_HALF", desc: "START done" }
+    - { from: "Address",   to: "AckAddr",  cond: "bit_cnt == 0", desc: "8 address bits + R/W sent" }
+    - { from: "AckAddr",   to: "Stop",     cond: "nack_from_slave", desc: "NACK received" }
+    - { from: "AckAddr",   to: "DataTx",   cond: "ack_from_slave && write_op", desc: "ACK, proceed write" }
+    - { from: "AckAddr",   to: "DataRx",   cond: "ack_from_slave && read_op", desc: "ACK, proceed read" }
+    - { from: "DataTx",    to: "AckData",  cond: "bit_cnt == 0", desc: "8 data bits sent" }
+    - { from: "AckData",   to: "DataTx",   cond: "ack && more_data", desc: "ACK, send next byte" }
+    - { from: "AckData",   to: "Stop",     cond: "ack && !more_data", desc: "ACK, done" }
+    - { from: "AckData",   to: "Stop",     cond: "nack", desc: "NACK, stop" }
+    - { from: "DataRx",    to: "AckMaster", cond: "bit_cnt == 0", desc: "8 data bits received" }
+    - { from: "AckMaster", to: "DataRx",   cond: "!nack && more_data", desc: "ACK host-ack, next byte" }
+    - { from: "AckMaster", to: "Stop",     cond: "!nack && !more_data", desc: "Done RX" }
+    - { from: "AckMaster", to: "Stop",     cond: "nack", desc: "Master NACK, stop" }
+    - { from: "Stop",      to: "Idle",     cond: "scl_cnt == SCL_HALF", desc: "STOP done" }
+  # Interrupt definitions
+  interrupts:
+    - { name: "tx_complete", desc: "Transaction complete", field: "tx_done", enable_field: "en_tx_done" }
+    - { name: "rx_ready", desc: "RX data available", field: "rx_avail", enable_field: "en_rx_avail" }
+    - { name: "arb_lost", desc: "Arbitration lost", field: "arb_lost", enable_field: "en_arb_lost" }
+    - { name: "nack", desc: "NACK received", field: "nack_recv", enable_field: "en_nack" }
+
+verification:
+  configuration:
+    - name: "speed_100k"
+      description: "Standard mode 100kHz"
+      constraints:
+        - { reg: "speed_reg", field: "scl_div", value: "59" }
+
+    - name: "speed_400k"
+      description: "Fast mode 400kHz"
+      constraints:
+        - { reg: "speed_reg", field: "scl_div", value: "11" }
+
+    - name: "speed_1m"
+      description: "Fast mode plus 1MHz"
+      constraints:
+        - { reg: "speed_reg", field: "scl_div", value: "3" }
+
+  test_scenarios:
+    - name: "basic_write_read"
+      description: "Verify all 9 registers RW access"
+      registers_to_test: ["ctrl_reg", "speed_reg", "addr_reg", "fifo_ctrl_reg", "status_reg", "intr_status_reg"]
+
+    - name: "write_transaction"
+      description: "I2C master write: START + addr + data + STOP"
+      config: "speed_400k"
+      sequence:
+        - "Write ctrl_reg.i2c_en = 1"
+        - "Set slave addr in addr_reg"
+        - "Write tx_data_reg with data byte"
+        - "Write cmd_reg.start = 1, write = 1"
+        - "Wait for busy clear"
+        - "Verify SCL/SDA toggled at 400kHz"
+
+    - name: "read_transaction"
+      description: "I2C master read: START + addr(R) + data + NACK + STOP"
+      config: "speed_400k"
+      sequence:
+        - "Write ctrl_reg.i2c_en = 1"
+        - "Set slave addr with R/W=1"
+        - "Write cmd_reg.start = 1, read = 1, nack = 1"
+        - "Read rx_data_reg, verify received byte"
+        - "Check stop_det in intr_status"
+
+    - name: "combined_transaction"
+      description: "I2C combined: START + addr(W) + data + RESTART + addr(R) + data + STOP"
+      config: "speed_400k"
+
+    - name: "multi_speed"
+      description: "Run transactions at all 3 speeds"
+      configs: ["speed_100k", "speed_400k", "speed_1m"]
+
+    - name: "arbitration_lost"
+      description: "Arbitration lost detection and recovery"
+      config: "speed_400k"
+
+    - name: "clock_stretch"
+      description: "Slave clock stretching handling"
+      config: "speed_100k"
+
+    - name: "fifo_stress"
+      description: "Fill 8-deep FIFO, check thresholds"
+      config: "speed_400k"
+
+    - name: "interrupt_test"
+      description: "Interrupt generation and clearing"
+      config: "speed_400k"
+
+    - name: "reset_recovery"
+      description: "Register values after reset"
+      config: "speed_400k"
+
+    - name: "apb_error"
+      description: "Access reserved address -> PSLVERR"
+
+  coverage_goals:
+    functional:
+      - "All 9 registers accessed (read/write per access type)"
+      - "I2C write transaction at all 3 speeds"
+      - "I2C read transaction at all 3 speeds"
+      - "Combined transaction (RESTART)"
+      - "FIFO full/empty/threshold"
+      - "Acknowledge/NACK generation"
+      - "Arbitration lost flag"
+      - "Clock stretching"
+      - "Interrupt asserted -> cleared"
+      - "START/STOP condition generation"
+      - "APB error on reserved address"
+    cross:
+      - "Speed x transaction type (write/read/combined)"
+      - "FIFO state x Interrupt status"
+    toggle:
+      - "All APB interface signals"
+      - "scl toggle during transaction"
+      - "sda toggle during transaction"

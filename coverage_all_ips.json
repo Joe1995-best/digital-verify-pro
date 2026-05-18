@@ -1,0 +1,90 @@
+[
+  {
+    "name": "OT DMA (手写 RTL)",
+    "vcd_kb": 566,
+    "total": 91,
+    "full": 77,
+    "half": 11,
+    "stuck": 0,
+    "pct": 93.8,
+    "dut_gaps": [
+      "src_addr_hi_q",
+      "dst_addr_hi_q",
+      "error_code_q",
+      "en_error_q",
+      "en_dma_done_q",
+      "en_chunk_q",
+      "dma_error_intr_q",
+      "chunk_data_size_q",
+      "stop_q",
+      "src_incr_en_q",
+      "dst_incr_en_q",
+      "error_inject"
+    ],
+    "env_gaps": [
+      "assert_apb_pready",
+      "assert_fsm_error",
+      "assert_fsm_done",
+      "assert_fsm_rst_n",
+      "assert_dma_intr_done",
+      "assert_dma_intr_error",
+      "assert_apb_pslverr"
+    ]
+  },
+  {
+    "name": "I2C (FSM + Slave)",
+    "vcd_kb": 300,
+    "total": 127,
+    "full": 82,
+    "half": 12,
+    "stuck": 5,
+    "pct": 88.9,
+    "dut_gaps": [
+      "rx_data_reg_q",
+      "rx_data_i2c",
+      "arb_intr",
+      "rx_intr",
+      "fifo_ctrl_reg_q"
+    ],
+    "env_gaps": [
+      "slave signals (expected)"
+    ]
+  },
+  {
+    "name": "ALU4",
+    "vcd_kb": 0,
+    "total": 11,
+    "full": 9,
+    "half": 2,
+    "stuck": 0,
+    "pct": 90.9,
+    "dut_gaps": [],
+    "env_gaps": []
+  },
+  {
+    "name": "Dual Port Stack",
+    "vcd_kb": 8,
+    "total": 38,
+    "full": 20,
+    "half": 0,
+    "stuck": 5,
+    "pct": 80.0,
+    "dut_gaps": [
+      "out1_data_reg",
+      "out0_data_reg",
+      "out1_data",
+      "out0_data",
+      "out1_valid_reg",
+      "out1_cmd_reg",
+      "out0_cmd_reg",
+      "out1_cmd",
+      "out0_cmd"
+    ],
+    "env_gaps": [
+      "tb_out0_data",
+      "tb_out1_data",
+      "check_eq",
+      "wait_ns"
+    ]
+  }
+]

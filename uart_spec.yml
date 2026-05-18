@@ -1,0 +1,359 @@
+# UART Controller Specification
+# APB-based UART with configurable baud rate, 8/9-bit data, parity, 8-deep FIFO
+
+module:
+  name: "uart"
+  description: "UART controller with configurable baud rate, 8/9-bit data, parity, 8-deep FIFO"
+  version: "1.0"
+
+clocks:
+  - name: "clk"
+    frequency: "50MHz"
+
+resets:
+  - name: "rstn"
+    polarity: "active_low"
+    async: true
+
+interfaces:
+  - name: "apb"
+    type: "APB"
+    direction: "slave"
+    data_width: 32
+    addr_width: 12
+    signals:
+      - { name: "psel",     width: 1,  direction: "input" }
+      - { name: "penable",  width: 1,  direction: "input" }
+      - { name: "pwrite",   width: 1,  direction: "input" }
+      - { name: "paddr",    width: 12, direction: "input" }
+      - { name: "pwdata",   width: 32, direction: "input" }
+      - { name: "prdata",   width: 32, direction: "output" }
+      - { name: "pready",   width: 1,  direction: "output" }
+      - { name: "pslverr",  width: 1,  direction: "output" }
+
+  - name: "uart"
+    type: "UART"
+    direction: "both"
+    signals:
+      - { name: "tx_o",     width: 1,  direction: "output", desc: "UART serial transmit" }
+      - { name: "rx_i",     width: 1,  direction: "input",  desc: "UART serial receive" }
+
+  - name: "interrupt"
+    type: "interrupt"
+    direction: "output"
+    signals:
+      - { name: "intr",     width: 1,  direction: "output", desc: "Interrupt request" }
+
+registers:
+  # Base address: 0x2000_0000
+
+  - name: "ctrl_reg"
+    offset: "0x00"
+    reset: "0x00"
+    description: "Control register — UART enable, direction control"
+    fields:
+      - { name: "uart_en",      bits: "[0]",   access: "rw",  reset: "0", desc: "UART core enable" }
+      - { name: "tx_en",        bits: "[1]",   access: "rw",  reset: "0", desc: "Transmitter enable" }
+      - { name: "rx_en",        bits: "[2]",   access: "rw",  reset: "0", desc: "Receiver enable" }
+      - { name: "loopback",     bits: "[3]",   access: "rw",  reset: "0", desc: "Loopback mode (tx_o=rx_i internal)" }
+      - { name: "reserved",     bits: "[31:4]", access: "ro",  reset: "0" }
+
+  - name: "baud_div_reg"
+    offset: "0x04"
+    reset: "0x01B3"  # 435 decimal → 115200 baud (50MHz / 16 / 435)
+    description: "Baud rate divider (baud = clk_freq / (16 * div))"
+    fields:
+      - { name: "baud_div",     bits: "[15:0]", access: "rw",  reset: "0x01B3", desc: "Baud rate divider: 115200=435, 9600=5208, 19200=2604" }
+      - { name: "reserved",     bits: "[31:16]",access: "ro",  reset: "0" }
+
+  - name: "line_config_reg"
+    offset: "0x08"
+    reset: "0x03"
+    description: "Line configuration — data bits, stop bits, parity"
+    fields:
+      - { name: "data_bits",    bits: "[1:0]",  access: "rw",  reset: "3", desc: "Data bits: 0=5b, 1=6b, 2=7b, 3=8b" }
+      - { name: "stop_bits",    bits: "[2]",    access: "rw",  reset: "0", desc: "Stop bits: 0=1 stop bit, 1=2 stop bits" }
+      - { name: "parity_en",    bits: "[3]",    access: "rw",  reset: "0", desc: "Parity enable" }
+      - { name: "parity_sel",   bits: "[4]",    access: "rw",  reset: "0", desc: "Parity: 0=even, 1=odd" }
+      - { name: "nine_bit",     bits: "[5]",    access: "rw",  reset: "0", desc: "9-bit data mode (bit 9 = addr/data flag)" }
+      - { name: "reserved",     bits: "[31:6]", access: "ro",  reset: "0" }
+
+  - name: "tx_data_reg"
+    offset: "0x0C"
+    reset: "0x00"
+    description: "Transmit data register (write-only)"
+    fields:
+      - { name: "tx_data",      bits: "[7:0]",  access: "wo",  reset: "0", desc: "Data byte to transmit" }
+      - { name: "tx_nine_bit",  bits: "[8]",    access: "wo",  reset: "0", desc: "9th bit in 9-bit mode (addr=1/data=0)" }
+      - { name: "reserved",     bits: "[31:9]", access: "ro",  reset: "0" }
+
+  - name: "rx_data_reg"
+    offset: "0x10"
+    reset: "0x00"
+    description: "Receive data register (read-only)"
+    fields:
+      - { name: "rx_data",      bits: "[7:0]",  access: "ro",  reset: "0", desc: "Received data byte" }
+      - { name: "rx_nine_bit",  bits: "[8]",    access: "ro",  reset: "0", desc: "9th bit in 9-bit mode" }
+      - { name: "rx_parity_err",bits: "[9]",    access: "ro",  reset: "0", desc: "Parity error in received frame (sticky)" }
+      - { name: "rx_frame_err", bits: "[10]",   access: "ro",  reset: "0", desc: "Framing error — invalid stop bit (sticky)" }
+      - { name: "rx_break",     bits: "[11]",   access: "ro",  reset: "0", desc: "Break condition detected (sticky)" }
+      - { name: "reserved",     bits: "[31:12]",access: "ro",  reset: "0" }
+
+  - name: "status_reg"
+    offset: "0x14"
+    reset: "0xA4"
+    description: "Status register — FIFO status and error flags"
+    fields:
+      - { name: "tx_busy",      bits: "[0]",   access: "ro",  reset: "0", desc: "Transmitter busy (shifting)" }
+      - { name: "tx_full",      bits: "[1]",   access: "ro",  reset: "0", desc: "TX FIFO full" }
+      - { name: "tx_empty",     bits: "[2]",   access: "ro",  reset: "1", desc: "TX FIFO empty" }
+      - { name: "rx_full",      bits: "[3]",   access: "ro",  reset: "0", desc: "RX FIFO full" }
+      - { name: "rx_empty",     bits: "[4]",   access: "ro",  reset: "1", desc: "RX FIFO empty" }
+      - { name: "rx_overrun",   bits: "[5]",   access: "ro",  reset: "0", desc: "RX overrun (FIFO full + new data)" }
+      - { name: "rx_break_det", bits: "[6]",   access: "ro",  reset: "0", desc: "Break detected (sticky)" }
+      - { name: "reserved",     bits: "[31:7]", access: "ro",  reset: "0" }
+
+  - name: "fifo_ctrl_reg"
+    offset: "0x18"
+    reset: "0x44"
+    description: "FIFO control — flush and thresholds"
+    fields:
+      - { name: "tx_flush",     bits: "[0]",    access: "wo",  reset: "0", desc: "Write 1 to flush TX FIFO" }
+      - { name: "rx_flush",     bits: "[1]",    access: "wo",  reset: "0", desc: "Write 1 to flush RX FIFO" }
+      - { name: "tx_threshold", bits: "[5:2]",  access: "rw",  reset: "4", desc: "TX FIFO threshold (0-15)" }
+      - { name: "rx_threshold", bits: "[9:6]",  access: "rw",  reset: "4", desc: "RX FIFO threshold (0-15)" }
+      - { name: "reserved",     bits: "[31:10]",access: "ro",  reset: "0" }
+
+  - name: "intr_enable_reg"
+    offset: "0x1C"
+    reset: "0x00"
+    description: "Interrupt enable register"
+    fields:
+      - { name: "tx_empty_en",  bits: "[0]",   access: "rw",  reset: "0", desc: "TX empty interrupt enable" }
+      - { name: "rx_avail_en",  bits: "[1]",   access: "rw",  reset: "0", desc: "RX data available interrupt enable" }
+      - { name: "rx_err_en",    bits: "[2]",   access: "rw",  reset: "0", desc: "RX error (parity/frame/overrun) interrupt enable" }
+      - { name: "break_en",     bits: "[3]",   access: "rw",  reset: "0", desc: "Break detect interrupt enable" }
+      - { name: "reserved",     bits: "[31:4]", access: "ro",  reset: "0" }
+
+  - name: "intr_status_reg"
+    offset: "0x20"
+    reset: "0x00"
+    description: "Interrupt status register (read-only, write-1-to-clear)"
+    fields:
+      - { name: "tx_empty",     bits: "[0]",   access: "ro",  reset: "0", desc: "TX FIFO empty pending (W1C)" }
+      - { name: "rx_avail",     bits: "[1]",   access: "ro",  reset: "0", desc: "RX data available pending (W1C)" }
+      - { name: "rx_err",       bits: "[2]",   access: "ro",  reset: "0", desc: "RX error pending (W1C)" }
+      - { name: "break_det",    bits: "[3]",   access: "ro",  reset: "0", desc: "Break detect pending (W1C)" }
+      - { name: "reserved",     bits: "[31:4]", access: "ro",  reset: "0" }
+
+  # Address map:
+  # 0x00 - ctrl_reg          (RW)
+  # 0x04 - baud_div_reg      (RW)
+  # 0x08 - line_config_reg   (RW)
+  # 0x0C - tx_data_reg       (WO)
+  # 0x10 - rx_data_reg       (RO)
+  # 0x14 - status_reg        (RO)
+  # 0x18 - fifo_ctrl_reg     (RW/WO)
+  # 0x1C - intr_enable_reg   (RW)
+  # 0x20 - intr_status_reg   (RO/W1C)
+  # 0x24-0xFFC - reserved
+
+# ── UART FSM configuration ──
+# Drives TX shift register, RX oversampling, baud rate generation
+fsm:
+  type: "uart"
+  name: "uart_fsm"
+  description: "UART controller FSM — TX serialization, RX oversampling (16x), baud timing, parity, and error detection"
+  clocks: ["clk"]
+  resets: ["rstn"]
+  default_baud: 115200  # Default baud rate
+  # UART state definitions (10 states)
+  states:
+    - { name: "Idle",      value: 0, desc: "TX idle (tx_o=1), waiting for data in TX FIFO" }
+    - { name: "StartTx",   value: 1, desc: "Transmit START bit (tx_o=0) for one bit period" }
+    - { name: "DataTx",    value: 2, desc: "Shift data bits out (LSB-first) on tx_o each bit period" }
+    - { name: "ParityTx",  value: 3, desc: "Transmit parity bit (if parity enabled)" }
+    - { name: "StopTx",    value: 4, desc: "Transmit STOP bit(s) (tx_o=1) — 1 or 2 bit periods" }
+    - { name: "IdleRx",    value: 5, desc: "RX idle, monitoring rx_i for falling edge (START)" }
+    - { name: "StartRx",   value: 6, desc: "RX START bit — sample at mid-bit (counter=7 of 16)" }
+    - { name: "DataRx",    value: 7, desc: "Sample data bits at mid-bit per 16x oversampling" }
+    - { name: "ParityRx",  value: 8, desc: "Sample parity bit, verify against computed parity" }
+    - { name: "StopRx",    value: 9, desc: "Sample STOP bit, check for framing error (expect rx_i=1)" }
+  # Key timing parameters
+  params:
+    baud_rate: "115200"         # Default baud
+    oversample: 16               # 16x oversampling for RX
+    bit_period_cycles: 435       # 50MHz / (16 * 115200) ≈ 27, clock cycles per bit
+  # State transition conditions (TX path)
+  transitions_tx:
+    - { from: "Idle",      to: "StartTx",  cond: "!tx_empty", desc: "Data available in TX FIFO" }
+    - { from: "StartTx",   to: "DataTx",   cond: "baud_tick", desc: "START bit period complete" }
+    - { from: "DataTx",    to: "ParityTx",  cond: "bit_cnt == data_bits && parity_en", desc: "All data bits sent, parity enabled" }
+    - { from: "DataTx",    to: "StopTx",   cond: "bit_cnt == data_bits && !parity_en", desc: "All data bits sent, no parity" }
+    - { from: "ParityTx",  to: "StopTx",   cond: "baud_tick", desc: "Parity bit sent" }
+    - { from: "StopTx",    to: "StartTx",  cond: "stop_cnt == stop_bits && !tx_empty", desc: "Stop bits done, more data pending" }
+    - { from: "StopTx",    to: "Idle",     cond: "stop_cnt == stop_bits && tx_empty", desc: "Stop bits done, no more data" }
+  # State transition conditions (RX path)
+  transitions_rx:
+    - { from: "IdleRx",    to: "StartRx",  cond: "falling_rx_i", desc: "Falling edge on rx_i (START)" }
+    - { from: "StartRx",   to: "DataRx",   cond: "sample_tick == 15", desc: "16 oversample ticks for START bit" }
+    - { from: "DataRx",    to: "ParityRx",  cond: "bit_cnt == data_bits && parity_en", desc: "All data bits received" }
+    - { from: "DataRx",    to: "StopRx",   cond: "bit_cnt == data_bits && !parity_en", desc: "All data bits received, no parity" }
+    - { from: "ParityRx",  to: "StopRx",   cond: "sample_tick == 15", desc: "Check parity bit" }
+    - { from: "StopRx",    to: "IdleRx",   cond: "1", desc: "STOP bit sample complete, push to FIFO" }
+  # Interrupt definitions
+  interrupts:
+    - { name: "tx_empty",    desc: "TX FIFO below threshold",         field: "tx_empty",  enable_field: "tx_empty_en" }
+    - { name: "rx_avail",    desc: "RX FIFO above threshold",         field: "rx_avail",  enable_field: "rx_avail_en" }
+    - { name: "rx_err",      desc: "RX error (parity/frame/overrun)", field: "rx_err",    enable_field: "rx_err_en" }
+    - { name: "break_det",   desc: "Break condition detected",        field: "break_det", enable_field: "break_en" }
+
+verification:
+  configuration:
+    - name: "baud_115200"
+      description: "115200 baud (standard)"
+      constraints:
+        - { reg: "baud_div_reg", field: "baud_div", value: "435" }
+
+    - name: "baud_9600"
+      description: "9600 baud (standard)"
+      constraints:
+        - { reg: "baud_div_reg", field: "baud_div", value: "5208" }
+
+    - name: "baud_19200"
+      description: "19200 baud"
+      constraints:
+        - { reg: "baud_div_reg", field: "baud_div", value: "2604" }
+
+    - name: "config_8n1"
+      description: "8 data bits, no parity, 1 stop"
+      constraints:
+        - { reg: "line_config_reg", field: "data_bits", value: "3" }
+        - { reg: "line_config_reg", field: "parity_en", value: "0" }
+        - { reg: "line_config_reg", field: "stop_bits", value: "0" }
+
+    - name: "config_8e1"
+      description: "8 data bits, even parity, 1 stop"
+      constraints:
+        - { reg: "line_config_reg", field: "data_bits", value: "3" }
+        - { reg: "line_config_reg", field: "parity_en", value: "1" }
+        - { reg: "line_config_reg", field: "parity_sel", value: "0" }
+
+    - name: "config_8o1"
+      description: "8 data bits, odd parity, 1 stop"
+      constraints:
+        - { reg: "line_config_reg", field: "data_bits", value: "3" }
+        - { reg: "line_config_reg", field: "parity_en", value: "1" }
+        - { reg: "line_config_reg", field: "parity_sel", value: "1" }
+
+    - name: "config_9n1"
+      description: "9 data bits, no parity, 1 stop"
+      constraints:
+        - { reg: "line_config_reg", field: "nine_bit", value: "1" }
+        - { reg: "line_config_reg", field: "parity_en", value: "0" }
+
+  test_scenarios:
+    - name: "basic_rw_registers"
+      description: "Verify all 10 registers RW access per access type"
+      registers_to_test: ["ctrl_reg", "baud_div_reg", "line_config_reg", "tx_data_reg", "rx_data_reg", "status_reg", "fifo_ctrl_reg", "intr_enable_reg", "intr_status_reg"]
+
+    - name: "tx_one_byte_8n1"
+      description: "Transmit 1 byte (0xA5) at 115200 8N1 — verify tx_o waveform"
+      config: "baud_115200"
+      sequence:
+        - "Write ctrl_reg.uart_en = 1, tx_en = 1"
+        - "Write tx_data_reg = 0xA5"
+        - "Wait for tx_busy → 1 → 0"
+        - "Verify tx_o: START(0) + 8 bits(LSB-first: 10100101) + STOP(1)"
+        - "Check status_reg.tx_empty = 1"
+
+    - name: "rx_one_byte_8n1"
+      description: "Receive 1 byte at 115200 8N1 by driving rx_i"
+      config: "baud_115200"
+      sequence:
+        - "Write ctrl_reg.uart_en = 1, rx_en = 1"
+        - "Drive rx_i: START(0) + 0xA5 + STOP(1) at baud rate"
+        - "Read rx_data_reg, verify 0xA5"
+        - "Check rx_parity_err = 0, rx_frame_err = 0"
+
+    - name: "tx_rx_loopback"
+      description: "Loopback mode — TX data received on RX"
+      config: "baud_115200"
+      sequence:
+        - "Write ctrl_reg.uart_en = 1, tx_en = 1, rx_en = 1, loopback = 1"
+        - "Write tx_data_reg = 0x5A"
+        - "Wait for TX complete"
+        - "Read rx_data_reg, verify 0x5A"
+
+    - name: "multi_baud_test"
+      description: "TX/RX loopback at 9600, 19200, 115200 baud"
+      configs: ["baud_9600", "baud_19200", "baud_115200"]
+
+    - name: "parity_test_even"
+      description: "Even parity — verify TX parity bit and RX parity check"
+      config: "config_8e1"
+
+    - name: "parity_test_odd"
+      description: "Odd parity — verify TX parity bit and RX parity check"
+      config: "config_8o1"
+
+    - name: "parity_error_detection"
+      description: "Force wrong parity on RX — verify rx_parity_err = 1"
+      config: "config_8e1"
+
+    - name: "framing_error"
+      description: "Force bad stop bit on RX — verify rx_frame_err = 1"
+      config: "baud_115200"
+
+    - name: "break_detection"
+      description: "RX line held low for >1 frame — verify break detection"
+      config: "baud_115200"
+
+    - name: "nine_bit_mode"
+      description: "9-bit data mode transmit and receive"
+      config: "config_9n1"
+
+    - name: "two_stop_bits"
+      description: "2 stop bits configuration"
+      config: "baud_115200"
+
+    - name: "fifo_fill_drain"
+      description: "Fill 8-deep TX FIFO, verify full/empty/threshold"
+      config: "baud_115200"
+
+    - name: "rx_overrun"
+      description: "Receive data when RX FIFO full — verify overrun flag"
+      config: "baud_115200"
+
+    - name: "interrupt_test"
+      description: "Interrupt generation and W1C for all 4 interrupt sources"
+      config: "baud_115200"
+
+    - name: "reset_recovery"
+      description: "Register values after reset"
+      config: "baud_115200"
+
+  coverage_goals:
+    functional:
+      - "All 10 registers accessed (read/write per access type)"
+      - "TX one byte at 9600, 19200, 115200 baud"
+      - "RX one byte at 9600, 19200, 115200 baud"
+      - "Loopback mode (TX→RX internal)"
+      - "Even parity and odd parity"
+      - "Parity error detection"
+      - "Framing error detection"
+      - "Break detection"
+      - "9-bit data mode"
+      - "1 stop bit and 2 stop bits"
+      - "FIFO full/empty/threshold"
+      - "FIFO overrun"
+      - "Interrupt generation and W1C clearing"
+      - "Register reset values"
+    cross:
+      - "Baud rate x data configuration (8N1/8E1/8O1/9N1)"
+      - "FIFO state x interrupt status"
+      - "TX complete x RX available (loopback)"
+    toggle:
+      - "All APB interface signals"
+      - "tx_o toggle during transmission"
+      - "rx_i toggle during reception"

@@ -1,0 +1,10 @@
+# Effort Level Configuration
+# Per-user: gitignored
+
+effort:
+  levels:
+    - lite
+    - standard
+    - intensive
+    - exhaustive
+  default: standard

@@ -1,0 +1,31 @@
+{
+  "regression_timestamp": "2026-05-15 14:58:01 UTC",
+  "total_elapsed_s": 4.5767738819122314,
+  "total_specs": 2,
+  "passed_specs": 2,
+  "failed_specs": 0,
+  "runs": [
+    {
+      "spec": "C:\\Users\\Administrator\\.openclaw\\workspace\\digital-verify-pro\\i2c_spec.yml",
+      "spec_basename": "i2c_spec",
+      "output": "C:\\Users\\Administrator\\.openclaw\\workspace\\digital-verify-pro\\output_i2c",
+      "success": true,
+      "elapsed_s": 2.2448670864105225,
+      "total_phases": 10,
+      "passed_phases": 10,
+      "failed_phases": 0,
+      "skipped_phases": 0
+    },
+    {
+      "spec": "C:\\Users\\Administrator\\.openclaw\\workspace\\digital-verify-pro\\ot_dma_spec.yml",
+      "spec_basename": "ot_dma_spec",
+      "output": "C:\\Users\\Administrator\\.openclaw\\workspace\\digital-verify-pro\\output_ot_dma",
+      "success": true,
+      "elapsed_s": 2.329521656036377,
+      "total_phases": 10,
+      "passed_phases": 10,
+      "failed_phases": 0,
+      "skipped_phases": 0
+    }
+  ]
+}

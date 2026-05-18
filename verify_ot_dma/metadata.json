@@ -1,0 +1,33 @@
+{
+  "module": "ot_dma_core",
+  "rtl": "C:\\Users\\Administrator\\.openclaw\\workspace\\digital-verify-pro\\ot_dma_rtl\\dma.sv",
+  "spec": "OpenTitan DMA Controller with APB interface, 64-bit addressing, interrupt generation",
+  "timestamp": "2026-05-12 13:47:31 UTC",
+  "iterations": 1,
+  "max_iterations": 5,
+  "tests": {
+    "total": 9,
+    "passed": 0,
+    "failed": 0
+  },
+  "coverage": {
+    "module": "ot_dma_core",
+    "line": 0.0,
+    "toggle": 0.0,
+    "fsm": 0.0,
+    "functional": 0.0,
+    "overall": 0.0,
+    "uncovered_signals": []
+  },
+  "performance": {
+    "compile_time_s": 0.18993186950683594,
+    "sim_time_s": 0.0
+  },
+  "run_id": "run_1778593651_ot_dma_core",
+  "files": {
+    "rtl": "dma.sv",
+    "testbench": "tb_ot_dma_core.v",
+    "log": "sim_output.log",
+    "dashboard": ""
+  }
+}

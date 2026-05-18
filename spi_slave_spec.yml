@@ -1,0 +1,317 @@
+# SPI Slave Controller Specification
+# 4-wire SPI slave with configurable CPOL/CPHA, APB slave interface, 8-deep FIFO
+
+module:
+  name: "spi_slave"
+  description: "SPI slave controller with 4-wire interface, configurable CPOL/CPHA, 8-deep FIFO"
+  version: "1.0"
+
+clocks:
+  - name: "clk"
+    frequency: "50MHz"
+
+resets:
+  - name: "rstn"
+    polarity: "active_low"
+    async: true
+
+interfaces:
+  - name: "apb"
+    type: "APB"
+    direction: "slave"
+    data_width: 32
+    addr_width: 12
+    signals:
+      - { name: "psel",     width: 1,  direction: "input" }
+      - { name: "penable",  width: 1,  direction: "input" }
+      - { name: "pwrite",   width: 1,  direction: "input" }
+      - { name: "paddr",    width: 12, direction: "input" }
+      - { name: "pwdata",   width: 32, direction: "input" }
+      - { name: "prdata",   width: 32, direction: "output" }
+      - { name: "pready",   width: 1,  direction: "output" }
+      - { name: "pslverr",  width: 1,  direction: "output" }
+
+  - name: "spi"
+    type: "SPI"
+    direction: "slave"
+    signals:
+      - { name: "sclk_i",   width: 1,  direction: "input",  desc: "SPI serial clock from master" }
+      - { name: "mosi_i",   width: 1,  direction: "input",  desc: "Master-out slave-in data" }
+      - { name: "miso_o",   width: 1,  direction: "output", desc: "Master-in slave-out data" }
+      - { name: "cs_i",     width: 1,  direction: "input",  desc: "Chip select (active low)" }
+
+  - name: "interrupt"
+    type: "interrupt"
+    direction: "output"
+    signals:
+      - { name: "intr",     width: 1,  direction: "output", desc: "Interrupt request" }
+
+registers:
+  # Base address: 0x2000_0000
+
+  - name: "ctrl_reg"
+    offset: "0x00"
+    reset: "0x00"
+    description: "Control register — SPI enable, LSB-first, loopback"
+    fields:
+      - { name: "spi_en",       bits: "[0]",   access: "rw",  reset: "0", desc: "SPI core enable" }
+      - { name: "lsb_first",    bits: "[1]",   access: "rw",  reset: "0", desc: "1=LSB-first, 0=MSB-first" }
+      - { name: "loopback",     bits: "[2]",   access: "rw",  reset: "0", desc: "Loopback mode (MISO=MOSI)" }
+      - { name: "reserved",     bits: "[31:3]", access: "ro",  reset: "0" }
+
+  - name: "config_reg"
+    offset: "0x04"
+    reset: "0x00"
+    description: "SPI mode configuration — clock polarity and phase"
+    fields:
+      - { name: "cpol",         bits: "[0]",   access: "rw",  reset: "0", desc: "Clock polarity: 0=idle low, 1=idle high" }
+      - { name: "cpha",         bits: "[1]",   access: "rw",  reset: "0", desc: "Clock phase: 0=sample on leading edge, 1=sample on trailing edge" }
+      - { name: "reserved",     bits: "[31:2]", access: "ro",  reset: "0" }
+
+  - name: "speed_reg"
+    offset: "0x08"
+    reset: "0x00"
+    description: "SCLK divider (used for loopback/internal timing reference)"
+    fields:
+      - { name: "sclk_div",     bits: "[15:0]", access: "rw",  reset: "0", desc: "SCLK divider for loopback mode" }
+      - { name: "reserved",     bits: "[31:16]",access: "ro",  reset: "0" }
+
+  - name: "tx_data_reg"
+    offset: "0x0C"
+    reset: "0x00"
+    description: "Transmit data register (write-only) — data to send on MISO"
+    fields:
+      - { name: "tx_data",      bits: "[7:0]",  access: "wo",  reset: "0", desc: "Data byte to transmit on MISO" }
+      - { name: "reserved",     bits: "[31:8]", access: "ro",  reset: "0" }
+
+  - name: "rx_data_reg"
+    offset: "0x10"
+    reset: "0x00"
+    description: "Receive data register (read-only) — data received on MOSI"
+    fields:
+      - { name: "rx_data",      bits: "[7:0]",  access: "ro",  reset: "0", desc: "Received data byte from MOSI" }
+      - { name: "reserved",     bits: "[31:8]", access: "ro",  reset: "0" }
+
+  - name: "status_reg"
+    offset: "0x14"
+    reset: "0x54"
+    description: "Status register — FIFO status flags"
+    fields:
+      - { name: "busy",          bits: "[0]",   access: "ro",  reset: "0", desc: "SPI transfer in progress" }
+      - { name: "rx_full",       bits: "[1]",   access: "ro",  reset: "0", desc: "RX FIFO full" }
+      - { name: "rx_empty",      bits: "[2]",   access: "ro",  reset: "1", desc: "RX FIFO empty" }
+      - { name: "tx_full",       bits: "[3]",   access: "ro",  reset: "0", desc: "TX FIFO full" }
+      - { name: "tx_empty",      bits: "[4]",   access: "ro",  reset: "1", desc: "TX FIFO empty" }
+      - { name: "rx_overflow",   bits: "[5]",   access: "ro",  reset: "0", desc: "RX FIFO overflow (sticky)" }
+      - { name: "tx_underflow",  bits: "[6]",   access: "ro",  reset: "0", desc: "TX FIFO underflow (sticky)" }
+      - { name: "reserved",      bits: "[31:7]", access: "ro",  reset: "0" }
+
+  - name: "fifo_ctrl_reg"
+    offset: "0x18"
+    reset: "0x44"
+    description: "FIFO control — flush and threshold configuration"
+    fields:
+      - { name: "tx_flush",      bits: "[0]",   access: "wo",  reset: "0", desc: "Write 1 to flush TX FIFO" }
+      - { name: "rx_flush",      bits: "[1]",   access: "wo",  reset: "0", desc: "Write 1 to flush RX FIFO" }
+      - { name: "tx_threshold",  bits: "[5:2]", access: "rw",  reset: "4", desc: "TX FIFO threshold (0-15)" }
+      - { name: "rx_threshold",  bits: "[9:6]", access: "rw",  reset: "4", desc: "RX FIFO threshold (0-15)" }
+      - { name: "reserved",      bits: "[31:10]",access: "ro",  reset: "0" }
+
+  - name: "intr_enable_reg"
+    offset: "0x1C"
+    reset: "0x00"
+    description: "Interrupt enable register"
+    fields:
+      - { name: "rx_full_en",     bits: "[0]",  access: "rw",  reset: "0", desc: "RX full interrupt enable" }
+      - { name: "tx_empty_en",    bits: "[1]",  access: "rw",  reset: "0", desc: "TX empty interrupt enable" }
+      - { name: "rx_overflow_en", bits: "[2]",  access: "rw",  reset: "0", desc: "RX overflow interrupt enable" }
+      - { name: "tx_underflow_en",bits: "[3]",  access: "rw",  reset: "0", desc: "TX underflow interrupt enable" }
+      - { name: "reserved",       bits: "[31:4]",access: "ro",  reset: "0" }
+
+  - name: "intr_status_reg"
+    offset: "0x20"
+    reset: "0x00"
+    description: "Interrupt status register (read-only, write-1-to-clear)"
+    fields:
+      - { name: "rx_full",        bits: "[0]",  access: "ro",  reset: "0", desc: "RX full interrupt pending (W1C)" }
+      - { name: "tx_empty",       bits: "[1]",  access: "ro",  reset: "0", desc: "TX empty interrupt pending (W1C)" }
+      - { name: "rx_overflow",    bits: "[2]",  access: "ro",  reset: "0", desc: "RX overflow interrupt pending (W1C)" }
+      - { name: "tx_underflow",   bits: "[3]",  access: "ro",  reset: "0", desc: "TX underflow interrupt pending (W1C)" }
+      - { name: "reserved",       bits: "[31:4]",access: "ro",  reset: "0" }
+
+  # Address map:
+  # 0x00 - ctrl_reg         (RW)
+  # 0x04 - config_reg       (RW)
+  # 0x08 - speed_reg        (RW)
+  # 0x0C - tx_data_reg      (WO)
+  # 0x10 - rx_data_reg      (RO)
+  # 0x14 - status_reg       (RO)
+  # 0x18 - fifo_ctrl_reg    (RW/WO)
+  # 0x1C - intr_enable_reg  (RW)
+  # 0x20 - intr_status_reg  (RO/W1C)
+  # 0x24-0xFFC - reserved
+
+# ── SPI Slave FSM configuration ──
+# Drives bit-level shift register, MISO output, and FIFO control
+fsm:
+  type: "spi"
+  name: "spi_fsm"
+  description: "SPI slave FSM — sclk edge detection, bit shift, CS tracking, FIFO management"
+  clocks: ["clk"]
+  resets: ["rstn"]
+  # SPI slave state definitions (7 states)
+  states:
+    - { name: "Idle",       value: 0, desc: "CS deasserted (cs_i=1), outputs high-Z" }
+    - { name: "Leading",    value: 1, desc: "CS asserted, waiting for first sclk edge according to CPOL/CPHA" }
+    - { name: "ShiftTx",    value: 2, desc: "Shift data out on MISO, sample MOSI on each sclk edge" }
+    - { name: "Capture",    value: 3, desc: "Capture MOSI sample point (internal half-cycle)" }
+    - { name: "BitDone",    value: 4, desc: "One full bit transferred (8 cycles = 1 byte)" }
+    - { name: "FifoPush",   value: 5, desc: "Push completed byte to RX FIFO, pop next TX byte" }
+    - { name: "CsDeassert", value: 6, desc: "CS deasserted mid-byte — abort current transfer" }
+  # Mode-specific behavior
+  params:
+    clock_mode: "CPOL=0 CPHA=0"  # Default: sclk idle low, sample on rising edge
+    max_bytes_per_cs: 256         # Max bytes per CS assertion
+    bit_order: "MSB_FIRST"        # Can be configured via lsb_first register
+  # State transition conditions
+  transitions:
+    - { from: "Idle",        to: "Leading",    cond: "!cs_i && spi_en", desc: "CS asserted low, core enabled" }
+    - { from: "Leading",     to: "ShiftTx",    cond: "sclk_edge_det", desc: "First valid sclk edge detected" }
+    - { from: "ShiftTx",     to: "Capture",    cond: "half_bit_cycle", desc: "Mid-cycle sample point reached" }
+    - { from: "Capture",     to: "ShiftTx",    cond: "bit_cnt < 8", desc: "More bits to transfer" }
+    - { from: "Capture",     to: "BitDone",    cond: "bit_cnt == 8", desc: "Byte complete" }
+    - { from: "BitDone",     to: "FifoPush",   cond: "!cs_i", desc: "CS still asserted, push to FIFO" }
+    - { from: "FifoPush",    to: "ShiftTx",    cond: "!cs_i", desc: "Next byte, reset bit counter" }
+    - { from: "BitDone",     to: "Idle",       cond: "cs_i", desc: "CS deasserted, return to idle" }
+    - { from: "FifoPush",    to: "Idle",       cond: "cs_i", desc: "CS deasserted after byte" }
+    - { from: "Leading",     to: "Idle",       cond: "cs_i", desc: "CS deasserted before first edge" }
+    - { from: "ShiftTx",     to: "CsDeassert", cond: "cs_i", desc: "CS deasserted during transfer" }
+    - { from: "CsDeassert",  to: "Idle",       cond: "1", desc: "Abort complete" }
+  # Interrupt definitions
+  interrupts:
+    - { name: "rx_full",       desc: "RX FIFO filled to threshold", field: "rx_full",       enable_field: "rx_full_en" }
+    - { name: "tx_empty",      desc: "TX FIFO drained to threshold", field: "tx_empty",      enable_field: "tx_empty_en" }
+    - { name: "rx_overflow",   desc: "RX FIFO overflow",             field: "rx_overflow",   enable_field: "rx_overflow_en" }
+    - { name: "tx_underflow",  desc: "TX FIFO underflow",            field: "tx_underflow",  enable_field: "tx_underflow_en" }
+
+verification:
+  configuration:
+    - name: "mode_0"
+      description: "SPI mode 0 (CPOL=0, CPHA=0)"
+      constraints:
+        - { reg: "config_reg", field: "cpol", value: "0" }
+        - { reg: "config_reg", field: "cpha", value: "0" }
+
+    - name: "mode_1"
+      description: "SPI mode 1 (CPOL=0, CPHA=1)"
+      constraints:
+        - { reg: "config_reg", field: "cpol", value: "0" }
+        - { reg: "config_reg", field: "cpha", value: "1" }
+
+    - name: "mode_2"
+      description: "SPI mode 2 (CPOL=1, CPHA=0)"
+      constraints:
+        - { reg: "config_reg", field: "cpol", value: "1" }
+        - { reg: "config_reg", field: "cpha", value: "0" }
+
+    - name: "mode_3"
+      description: "SPI mode 3 (CPOL=1, CPHA=1)"
+      constraints:
+        - { reg: "config_reg", field: "cpol", value: "1" }
+        - { reg: "config_reg", field: "cpha", value: "1" }
+
+    - name: "lsb_first_mode"
+      description: "LSB-first data ordering"
+      constraints:
+        - { reg: "ctrl_reg", field: "lsb_first", value: "1" }
+
+    - name: "loopback_mode"
+      description: "Internal loopback for self-test"
+      constraints:
+        - { reg: "ctrl_reg", field: "loopback", value: "1" }
+
+  test_scenarios:
+    - name: "basic_rw_registers"
+      description: "Verify all 10 registers RW access per access type"
+      registers_to_test: ["ctrl_reg", "config_reg", "speed_reg", "tx_data_reg", "rx_data_reg", "status_reg", "fifo_ctrl_reg", "intr_enable_reg", "intr_status_reg"]
+
+    - name: "transfer_one_byte"
+      description: "SPI master writes 1 byte (CS low → 8 sclk cycles → CS high)"
+      config: "mode_0"
+      sequence:
+        - "Write ctrl_reg.spi_en = 1"
+        - "Write tx_data_reg with 0xA5"
+        - "Assert cs_i low (external master)"
+        - "Toggle sclk_i 8 times per CPOL/CPHA"
+        - "Read rx_data_reg, verify 0xA5 received (loopback) or captured data"
+        - "Read status_reg.rx_empty=0, status_reg.busy=0"
+        - "Deassert cs_i high"
+
+    - name: "multi_byte_transfer"
+      description: "Burst transfer of 4 bytes without CS deassertion"
+      config: "mode_0"
+      sequence:
+        - "Write ctrl_reg.spi_en = 1"
+        - "Write 4 bytes to tx_data_reg (fills TX FIFO)"
+        - "Assert cs_i low, toggle sclk for 32 cycles"
+        - "Read 4 bytes from rx_data_reg"
+        - "Verify FIFO empty status"
+
+    - name: "all_four_modes"
+      description: "Run single-byte transfer in all 4 SPI modes"
+      configs: ["mode_0", "mode_1", "mode_2", "mode_3"]
+
+    - name: "lsb_first_transfer"
+      description: "LSB-first data ordering"
+      config: "lsb_first_mode"
+
+    - name: "loopback_test"
+      description: "Internal loopback — TX data reflects on RX"
+      config: "loopback_mode"
+
+    - name: "fifo_overflow"
+      description: "Fill RX FIFO beyond 8 entries, check overflow flag"
+      config: "mode_0"
+
+    - name: "fifo_underflow"
+      description: "Read TX FIFO when empty, check underflow flag"
+      config: "mode_0"
+
+    - name: "cs_abort"
+      description: "CS deasserted mid-transfer — verify state recovery"
+      config: "mode_0"
+
+    - name: "interrupt_test"
+      description: "Interrupt generation for RX full, TX empty, overflow, underflow"
+      config: "mode_0"
+
+    - name: "reset_recovery"
+      description: "Register values after reset assertion/deassertion"
+      config: "mode_0"
+
+    - name: "threshold_config"
+      description: "FIFO threshold reconfiguration and verification"
+      config: "mode_0"
+
+  coverage_goals:
+    functional:
+      - "All 10 registers accessed (read/write per access type)"
+      - "SPI single-byte transfer in all 4 modes"
+      - "Multi-byte burst transfer (4+ bytes)"
+      - "LSB-first transfer"
+      - "Loopback mode"
+      - "FIFO full/empty/threshold"
+      - "FIFO overflow and underflow"
+      - "CS deassertion mid-transfer (abort)"
+      - "Interrupt generation and W1C clearing"
+      - "Register reset values"
+    cross:
+      - "SPI mode x transfer length (1/2/4/8 bytes)"
+      - "FIFO state x interrupt status"
+      - "Bit order (MSB/LSB) x mode"
+    toggle:
+      - "All APB interface signals"
+      - "sclk_i toggle during transfer"
+      - "mosi_i toggle during transfer"
+      - "miso_o toggle during transfer"
+      - "cs_i assertion/deassertion"

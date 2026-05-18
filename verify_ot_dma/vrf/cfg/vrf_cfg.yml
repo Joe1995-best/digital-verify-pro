@@ -1,0 +1,59 @@
+# vrf_cfg.yml — Verification configuration for ot_dma_core
+# YAML-based config: seeds, iterations, coverage targets, assertion flags
+
+module: "ot_dma_core"
+description: "OpenTitan DMA Controller — verification config"
+
+# RTL and testbench paths (relative to project root)
+rtl:
+  - "ot_dma_rtl/dma.sv"
+
+testbench:
+  top: "verify_ot_dma/tb_dma_vrf.sv"
+  extra_sources:
+    - "verify_ot_dma/vrf/vrf_rand.sv"
+
+# Clock and reset
+clocks:
+  - name: "clk_i"
+    period_ns: 10  # 100MHz
+
+resets:
+  - name: "rst_ni"
+    polarity: "active_low"
+    deassert_ns: 50
+
+# Seed range for multi-seed regression
+seeds:
+  default: 42
+  min: 1
+  max: 10
+  step: 1
+
+# Coverage targets
+coverage_targets:
+  toggle: 90.0     # target toggle coverage %
+  functional: 85.0 # target functional coverage %
+  fsm: 100.0       # target FSM state coverage %
+
+# Iterations for convergence loop
+convergence:
+  max_iterations: 5
+  target_coverage: 90.0
+  auto_stop_no_gaps: true
+
+# Assertions
+assertions:
+  enable_apb: true
+  enable_fsm: true
+  enable_dma: true
+  host_req_timeout: 500  # cycles before timeout
+
+# Test parameters
+test_params:
+  reg_random_iters: 50     # random register transactions per seed
+  dma_transfer_iters: 15   # random DMA transfers per seed
+  error_injection_rate: 0.2  # 20% chance of host error
+
+# Verbosity
+verbosity: "medium"  # low | medium | high | debug

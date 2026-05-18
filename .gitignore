@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# VSCode
+.vscode/
+.idea/
+
+# pytest
+.pytest_cache/
+
+# Output dirs
+output/
+output_*/
+verify_pro_*/
+quickstart/
+
+# Simulation artifacts
+*.vcd
+*.vpd
+*.fsdb
+*.dump
+*.log
+*.wlf
+*.ucdb
+*.sim
+transcript
+
+# UVM
+work/
+sim/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+*.tmp
+*.swp

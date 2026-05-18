@@ -1,0 +1,273 @@
+#! /d/a/fpga-toolchain-build/fpga-toolchain-build/iverilog/_install/bin/vvp
+:ivl_version "11.0 (stable)" "(d3b0992)";
+:ivl_delay_selection "TYPICAL";
+:vpi_time_precision + 0;
+:vpi_module "C:\PROGRA~3\CHOCOL~1\lib\iverilog\tools\lib\ivl\system.vpi";
+:vpi_module "C:\PROGRA~3\CHOCOL~1\lib\iverilog\tools\lib\ivl\vhdl_sys.vpi";
+:vpi_module "C:\PROGRA~3\CHOCOL~1\lib\iverilog\tools\lib\ivl\vhdl_textio.vpi";
+:vpi_module "C:\PROGRA~3\CHOCOL~1\lib\iverilog\tools\lib\ivl\v2005_math.vpi";
+:vpi_module "C:\PROGRA~3\CHOCOL~1\lib\iverilog\tools\lib\ivl\va_math.vpi";
+:vpi_module "C:\PROGRA~3\CHOCOL~1\lib\iverilog\tools\lib\ivl\v2009.vpi";
+S_000001f6191cbc70 .scope package, "$unit" "$unit" 2 1;
+ .timescale 0 0;
+S_000001f6192d6680 .scope module, "vrf_assert_dma" "vrf_assert_dma" 3 4;
+ .timescale 0 0;
+    .port_info 0 /INPUT 1 "clk";
+    .port_info 1 /INPUT 1 "rst_n";
+    .port_info 2 /INPUT 1 "start";
+    .port_info 3 /INPUT 1 "enable";
+    .port_info 4 /INPUT 1 "busy";
+    .port_info 5 /INPUT 1 "done";
+    .port_info 6 /INPUT 1 "error_flag";
+    .port_info 7 /INPUT 1 "host_req";
+    .port_info 8 /INPUT 1 "host_we";
+    .port_info 9 /INPUT 1 "host_gnt";
+    .port_info 10 /INPUT 1 "host_rvalid";
+    .port_info 11 /INPUT 1 "intr_done";
+    .port_info 12 /INPUT 1 "intr_error";
+P_000001f6192d5f30 .param/l "HOST_REQ_TIMEOUT" 0 3 5, +C4<00000000000000000000000111110100>;
+o000001f6192f8f98 .functor BUFZ 1, C4<z>; HiZ drive
+v000001f6191cb6a0_0 .net "busy", 0 0, o000001f6192f8f98;  0 drivers
+o000001f6192f8fc8 .functor BUFZ 1, C4<z>; HiZ drive
+v000001f6192d8b10_0 .net "clk", 0 0, o000001f6192f8fc8;  0 drivers
+o000001f6192f8ff8 .functor BUFZ 1, C4<z>; HiZ drive
+v000001f6191cbe00_0 .net "done", 0 0, o000001f6192f8ff8;  0 drivers
+o000001f6192f9028 .functor BUFZ 1, C4<z>; HiZ drive
+v000001f6192d6810_0 .net "enable", 0 0, o000001f6192f9028;  0 drivers
+o000001f6192f9058 .functor BUFZ 1, C4<z>; HiZ drive
+v000001f6192d68b0_0 .net "error_flag", 0 0, o000001f6192f9058;  0 drivers
+o000001f6192f9088 .functor BUFZ 1, C4<z>; HiZ drive
+v000001f6192ec360_0 .net "host_gnt", 0 0, o000001f6192f9088;  0 drivers
+o000001f6192f90b8 .functor BUFZ 1, C4<z>; HiZ drive
+v000001f6192ec400_0 .net "host_req", 0 0, o000001f6192f90b8;  0 drivers
+v000001f6192e4750_0 .var/2s "host_req_cycles", 31 0;
+v000001f6192e47f0_0 .var/2s "host_req_timeouts", 31 0;
+o000001f6192f9148 .functor BUFZ 1, C4<z>; HiZ drive
+v000001f6192e4890_0 .net "host_rvalid", 0 0, o000001f6192f9148;  0 drivers
+o000001f6192f9178 .functor BUFZ 1, C4<z>; HiZ drive
+v000001f6192e4930_0 .net "host_we", 0 0, o000001f6192f9178;  0 drivers
+o000001f6192f91a8 .functor BUFZ 1, C4<z>; HiZ drive
+v000001f619342430_0 .net "intr_done", 0 0, o000001f6192f91a8;  0 drivers
+o000001f6192f91d8 .functor BUFZ 1, C4<z>; HiZ drive
+v000001f619342a70_0 .net "intr_error", 0 0, o000001f6192f91d8;  0 drivers
+o000001f6192f9208 .functor BUFZ 1, C4<z>; HiZ drive
+v000001f619342cf0_0 .net "rst_n", 0 0, o000001f6192f9208;  0 drivers
+o000001f6192f9238 .functor BUFZ 1, C4<z>; HiZ drive
+v000001f619342250_0 .net "start", 0 0, o000001f6192f9238;  0 drivers
+E_000001f6192d5970 .event posedge, v000001f6192d8b10_0;
+S_000001f6192ec1d0 .scope function.void, "report" "report" 3 64, 3 64 0, S_000001f6192d6680;
+ .timescale 0 0;
+TD_vrf_assert_dma.report ;
+    %vpi_call/w 3 65 "$display", "[ASSERT-DMA] Report:" {0 0 0};
+    %load/vec4 v000001f6192e47f0_0;
+    %cmpi/ne 0, 0, 32;
+    %jmp/0xz  T_0.0, 4;
+    %vpi_call/w 3 66 "$display", "  [FAIL] Host req timeouts: %0d", v000001f6192e47f0_0 {0 0 0};
+    %jmp T_0.1;
+T_0.0 ;
+    %vpi_call/w 3 67 "$display", "  [PASS] No host req timeouts" {0 0 0};
+T_0.1 ;
+    %end;
+S_000001f6192ec040 .scope module, "vrf_assert_fsm" "vrf_assert_fsm" 4 4;
+ .timescale 0 0;
+    .port_info 0 /INPUT 1 "clk";
+    .port_info 1 /INPUT 1 "rst_n";
+    .port_info 2 /INPUT 3 "state_q";
+    .port_info 3 /INPUT 1 "busy";
+    .port_info 4 /INPUT 1 "done";
+    .port_info 5 /INPUT 1 "error";
+P_000001f6192b2d70 .param/l "N_STATES" 0 4 5, +C4<00000000000000000000000000001000>;
+P_000001f6192b2da8 .param/l "TIMEOUT_CYCLES" 0 4 6, +C4<00000000000000000000001111101000>;
+o000001f6192f94d8 .functor BUFZ 1, C4<z>; HiZ drive
+v000001f619342570_0 .net "busy", 0 0, o000001f6192f94d8;  0 drivers
+o000001f6192f9508 .functor BUFZ 1, C4<z>; HiZ drive
+v000001f619342f70_0 .net "clk", 0 0, o000001f6192f9508;  0 drivers
+v000001f619342070_0 .var/2s "cycles_in_state", 31 0;
+o000001f6192f9568 .functor BUFZ 1, C4<z>; HiZ drive
+v000001f619342bb0_0 .net "done", 0 0, o000001f6192f9568;  0 drivers
+o000001f6192f9598 .functor BUFZ 1, C4<z>; HiZ drive
+v000001f6193424d0_0 .net "error", 0 0, o000001f6192f9598;  0 drivers
+v000001f6193426b0_0 .var "last_state", 2 0;
+v000001f6193429d0_0 .var/2s "max_cycles_same_state", 31 0;
+o000001f6192f9628 .functor BUFZ 1, C4<z>; HiZ drive
+v000001f6193422f0_0 .net "rst_n", 0 0, o000001f6192f9628;  0 drivers
+v000001f619342610_0 .var/2s "stall_violations", 31 0;
+o000001f6192f9688 .functor BUFZ 3, C4<zzz>; HiZ drive
+v000001f619342930_0 .net "state_q", 2 0, o000001f6192f9688;  0 drivers
+v000001f619342890_0 .var/2s "state_transitions", 31 0;
+E_000001f6192d5fb0 .event posedge, v000001f619342f70_0;
+S_000001f6192dacd0 .scope function.void, "report" "report" 4 57, 4 57 0, S_000001f6192ec040;
+ .timescale 0 0;
+TD_vrf_assert_fsm.report ;
+    %vpi_call/w 4 58 "$display", "[ASSERT-FSM] Report:" {0 0 0};
+    %vpi_call/w 4 59 "$display", "  State transitions: %0d", v000001f619342890_0 {0 0 0};
+    %vpi_call/w 4 60 "$display", "  Max cycles in same state: %0d", v000001f6193429d0_0 {0 0 0};
+    %load/vec4 v000001f619342610_0;
+    %cmpi/ne 0, 0, 32;
+    %jmp/0xz  T_1.2, 4;
+    %vpi_call/w 4 61 "$display", "  [FAIL] State stalls: %0d", v000001f619342610_0 {0 0 0};
+    %jmp T_1.3;
+T_1.2 ;
+    %vpi_call/w 4 62 "$display", "  [PASS] No state stalls detected" {0 0 0};
+T_1.3 ;
+    %end;
+    .scope S_000001f6192d6680;
+T_2 ;
+    %wait E_000001f6192d5970;
+    %load/vec4 v000001f619342cf0_0;
+    %nor/r;
+    %flag_set/vec4 8;
+    %jmp/0xz  T_2.0, 8;
+    %pushi/vec4 0, 0, 32;
+    %assign/vec4 v000001f6192e4750_0, 0;
+    %jmp T_2.1;
+T_2.0 ;
+    %load/vec4 v000001f6192ec400_0;
+    %flag_set/vec4 8;
+    %jmp/0xz  T_2.2, 8;
+    %load/vec4 v000001f6192e4750_0;
+    %addi 1, 0, 32;
+    %cast2;
+    %assign/vec4 v000001f6192e4750_0, 0;
+    %load/vec4 v000001f6192e4750_0;
+    %cmpi/s 500, 0, 32;
+    %flag_or 5, 4; GT is !LE
+    %flag_inv 5;
+    %jmp/0xz  T_2.4, 5;
+    %load/vec4 v000001f6192e47f0_0;
+    %addi 1, 0, 32;
+    %cast2;
+    %assign/vec4 v000001f6192e47f0_0, 0;
+    %vpi_call/w 3 39 "$display", "[ASSERT-DMA] HOST_REQ timeout: request active for >%0d cycles", P_000001f6192d5f30 {0 0 0};
+    %pushi/vec4 0, 0, 32;
+    %assign/vec4 v000001f6192e4750_0, 0;
+T_2.4 ;
+    %jmp T_2.3;
+T_2.2 ;
+    %pushi/vec4 0, 0, 32;
+    %assign/vec4 v000001f6192e4750_0, 0;
+T_2.3 ;
+T_2.1 ;
+    %jmp T_2;
+    .thread T_2;
+    .scope S_000001f6192d6680;
+T_3 ;
+    %wait E_000001f6192d5970;
+    %load/vec4 v000001f619342cf0_0;
+    %load/vec4 v000001f6191cbe00_0;
+    %and;
+    %load/vec4 v000001f6192d68b0_0;
+    %and;
+    %flag_set/vec4 8;
+    %jmp/0xz  T_3.0, 8;
+    %vpi_call/w 3 50 "$display", "[ASSERT-DMA] Both done and error asserted!" {0 0 0};
+T_3.0 ;
+    %jmp T_3;
+    .thread T_3;
+    .scope S_000001f6192d6680;
+T_4 ;
+    %wait E_000001f6192d5970;
+    %load/vec4 v000001f619342cf0_0;
+    %load/vec4 v000001f619342430_0;
+    %and;
+    %load/vec4 v000001f6191cbe00_0;
+    %nor/r;
+    %and;
+    %flag_set/vec4 8;
+    %jmp/0xz  T_4.0, 8;
+    %vpi_call/w 3 57 "$display", "[ASSERT-DMA] intr_done without done_q!" {0 0 0};
+T_4.0 ;
+    %load/vec4 v000001f619342cf0_0;
+    %load/vec4 v000001f619342a70_0;
+    %and;
+    %load/vec4 v000001f6192d68b0_0;
+    %nor/r;
+    %and;
+    %flag_set/vec4 8;
+    %jmp/0xz  T_4.2, 8;
+    %vpi_call/w 3 60 "$display", "[ASSERT-DMA] intr_error without error_flag!" {0 0 0};
+T_4.2 ;
+    %jmp T_4;
+    .thread T_4;
+    .scope S_000001f6192ec040;
+T_5 ;
+    %wait E_000001f6192d5fb0;
+    %load/vec4 v000001f6193422f0_0;
+    %nor/r;
+    %flag_set/vec4 8;
+    %jmp/0xz  T_5.0, 8;
+    %pushi/vec4 0, 0, 32;
+    %assign/vec4 v000001f619342070_0, 0;
+    %pushi/vec4 0, 0, 3;
+    %assign/vec4 v000001f6193426b0_0, 0;
+    %pushi/vec4 0, 0, 32;
+    %assign/vec4 v000001f619342610_0, 0;
+    %pushi/vec4 0, 0, 32;
+    %assign/vec4 v000001f619342890_0, 0;
+    %jmp T_5.1;
+T_5.0 ;
+    %load/vec4 v000001f619342930_0;
+    %load/vec4 v000001f6193426b0_0;
+    %cmp/ne;
+    %jmp/0xz  T_5.2, 6;
+    %load/vec4 v000001f619342890_0;
+    %addi 1, 0, 32;
+    %cast2;
+    %assign/vec4 v000001f619342890_0, 0;
+    %pushi/vec4 0, 0, 32;
+    %assign/vec4 v000001f619342070_0, 0;
+    %load/vec4 v000001f619342930_0;
+    %assign/vec4 v000001f6193426b0_0, 0;
+    %load/vec4 v000001f6193429d0_0;
+    %cmpi/s 1000, 0, 32;
+    %flag_or 5, 4; GT is !LE
+    %flag_inv 5;
+    %jmp/0xz  T_5.4, 5;
+    %load/vec4 v000001f619342610_0;
+    %addi 1, 0, 32;
+    %cast2;
+    %assign/vec4 v000001f619342610_0, 0;
+    %vpi_call/w 4 39 "$display", "[ASSERT-FSM] STALL: stayed in state %d for %0d cycles", v000001f6193426b0_0, v000001f6193429d0_0 {0 0 0};
+T_5.4 ;
+    %pushi/vec4 0, 0, 32;
+    %assign/vec4 v000001f6193429d0_0, 0;
+    %jmp T_5.3;
+T_5.2 ;
+    %load/vec4 v000001f619342070_0;
+    %addi 1, 0, 32;
+    %cast2;
+    %assign/vec4 v000001f619342070_0, 0;
+    %load/vec4 v000001f6193429d0_0;
+    %load/vec4 v000001f619342070_0;
+    %cmp/s;
+    %jmp/0xz  T_5.6, 5;
+    %load/vec4 v000001f619342070_0;
+    %assign/vec4 v000001f6193429d0_0, 0;
+T_5.6 ;
+T_5.3 ;
+T_5.1 ;
+    %jmp T_5;
+    .thread T_5;
+    .scope S_000001f6192ec040;
+T_6 ;
+    %wait E_000001f6192d5fb0;
+    %load/vec4 v000001f6193422f0_0;
+    %pushi/vec4 7, 0, 32;
+    %load/vec4 v000001f619342930_0;
+    %pad/u 32;
+    %cmp/u;
+    %flag_get/vec4 5;
+    %and;
+    %flag_set/vec4 8;
+    %jmp/0xz  T_6.0, 8;
+    %vpi_call/w 4 53 "$display", "[ASSERT-FSM] ILLEGAL state value: %d", v000001f619342930_0 {0 0 0};
+T_6.0 ;
+    %jmp T_6;
+    .thread T_6;
+# The file index is used to find the file name in the following table.
+:file_names 5;
+    "N/A";
+    "<interactive>";
+    "-";
+    "vrf_assert_dma.sv";
+    "vrf_assert_fsm.sv";

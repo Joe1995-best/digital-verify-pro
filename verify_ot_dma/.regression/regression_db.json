@@ -1,0 +1,19 @@
+[
+  {
+    "run_id": "run_1778593651_ot_dma_core",
+    "timestamp": "2026-05-12 13:47:31 UTC",
+    "module_name": "ot_dma_core",
+    "rtl_hash": "54c722059a2c",
+    "total_tests": 9,
+    "passed": 0,
+    "failed": 0,
+    "compile_time_s": 0.18993186950683594,
+    "sim_time_s": 0.0,
+    "iterations": 1,
+    "coverage_pct": 0.0,
+    "version": "1.0",
+    "failures": [],
+    "git_commit": "",
+    "notes": "Pro Verify: 9 tests, 5 max iter"
+  }
+]

@@ -1,0 +1,160 @@
+{
+  "module": "ot_dma_core",
+  "spec": "OpenTitan DMA Controller with APB interface, 64-bit addressing, interrupt generation",
+  "tests": [
+    {
+      "id": 1,
+      "name": "Reset Sequence",
+      "test_type": "directed",
+      "description": "Verify proper initialization after rst_n deassertion",
+      "priority": 1,
+      "code": "",
+      "expected_result": "",
+      "coverage_points": [
+        "reset_init",
+        "post_reset_state"
+      ],
+      "dependencies": [],
+      "status": "pending",
+      "iteration_count": 0,
+      "max_iterations": 3
+    },
+    {
+      "id": 2,
+      "name": "FSM State Transition Coverage",
+      "test_type": "directed",
+      "description": "Cover all 6 FSM states: write, read, Idle, Read, Write, Done",
+      "priority": 2,
+      "code": "",
+      "expected_result": "",
+      "coverage_points": [
+        "fsm_all_states",
+        "fsm_transitions"
+      ],
+      "dependencies": [],
+      "status": "pending",
+      "iteration_count": 0,
+      "max_iterations": 3
+    },
+    {
+      "id": 3,
+      "name": "FSM transition: write \u2192 read",
+      "test_type": "directed",
+      "description": "Verify FSM transitions from write to read",
+      "priority": 3,
+      "code": "",
+      "expected_result": "",
+      "coverage_points": [
+        "fsm_trans_write_read"
+      ],
+      "dependencies": [],
+      "status": "pending",
+      "iteration_count": 0,
+      "max_iterations": 3
+    },
+    {
+      "id": 4,
+      "name": "FSM transition: read \u2192 Idle",
+      "test_type": "directed",
+      "description": "Verify FSM transitions from read to Idle",
+      "priority": 3,
+      "code": "",
+      "expected_result": "",
+      "coverage_points": [
+        "fsm_trans_read_Idle"
+      ],
+      "dependencies": [],
+      "status": "pending",
+      "iteration_count": 0,
+      "max_iterations": 3
+    },
+    {
+      "id": 5,
+      "name": "FSM transition: Idle \u2192 Read",
+      "test_type": "directed",
+      "description": "Verify FSM transitions from Idle to Read",
+      "priority": 3,
+      "code": "",
+      "expected_result": "",
+      "coverage_points": [
+        "fsm_trans_Idle_Read"
+      ],
+      "dependencies": [],
+      "status": "pending",
+      "iteration_count": 0,
+      "max_iterations": 3
+    },
+    {
+      "id": 6,
+      "name": "FSM transition: Read \u2192 Write",
+      "test_type": "directed",
+      "description": "Verify FSM transitions from Read to Write",
+      "priority": 3,
+      "code": "",
+      "expected_result": "",
+      "coverage_points": [
+        "fsm_trans_Read_Write"
+      ],
+      "dependencies": [],
+      "status": "pending",
+      "iteration_count": 0,
+      "max_iterations": 3
+    },
+    {
+      "id": 7,
+      "name": "FSM transition: Write \u2192 Done",
+      "test_type": "directed",
+      "description": "Verify FSM transitions from Write to Done",
+      "priority": 3,
+      "code": "",
+      "expected_result": "",
+      "coverage_points": [
+        "fsm_trans_Write_Done"
+      ],
+      "dependencies": [],
+      "status": "pending",
+      "iteration_count": 0,
+      "max_iterations": 3
+    },
+    {
+      "id": 8,
+      "name": "Constrained Random Test Sequence",
+      "test_type": "constrained_random",
+      "description": "Randomized inputs with constraints for ot_dma_core",
+      "priority": 3,
+      "code": "",
+      "expected_result": "",
+      "coverage_points": [
+        "random_all_inputs",
+        "random_edge_cases"
+      ],
+      "dependencies": [],
+      "status": "pending",
+      "iteration_count": 0,
+      "max_iterations": 3
+    },
+    {
+      "id": 9,
+      "name": "Error Injection / Resilience",
+      "test_type": "error_injection",
+      "description": "Inject invalid inputs, unexpected sequences, X/Z propagation",
+      "priority": 4,
+      "code": "",
+      "expected_result": "",
+      "coverage_points": [
+        "error_injection",
+        "x_propagation",
+        "unexpected_inputs"
+      ],
+      "dependencies": [],
+      "status": "pending",
+      "iteration_count": 0,
+      "max_iterations": 3
+    }
+  ],
+  "coverage": {
+    "total_points": 7,
+    "hit": 0,
+    "coverage_pct": 0.0
+  }
+}

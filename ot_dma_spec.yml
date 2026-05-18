@@ -1,0 +1,319 @@
+# OpenTitan DMA Controller — adapted from hw/ip/dma/data/dma.hjson
+# Original: lowRISC/opentitan, Apache-2.0
+# Control bus adapted to APB (OT uses TL-UL)
+
+module:
+  name: "ot_dma"
+  description: "OpenTitan Secure DMA Controller — 64-bit addressing, multi-address-space, hardware-isolated data movement"
+  version: "1.0.0"
+
+clocks:
+  - name: "clk_i"
+    frequency: "100MHz"
+  - name: "sys_clk_i"
+    frequency: "100MHz"
+    desc: "SoC system bus clock"
+
+resets:
+  - name: "rst_ni"
+    polarity: "active_low"
+    async: true
+
+interfaces:
+  - name: "apb"
+    type: "APB"
+    direction: "slave"
+    data_width: 32
+    addr_width: 16
+    signals:
+      - { name: "psel",      width: 1,  direction: "input" }
+      - { name: "penable",   width: 1,  direction: "input" }
+      - { name: "pwrite",    width: 1,  direction: "input" }
+      - { name: "paddr",     width: 16, direction: "input" }
+      - { name: "pwdata",    width: 32, direction: "input" }
+      - { name: "prdata",    width: 32, direction: "output" }
+      - { name: "pready",    width: 1,  direction: "output" }
+      - { name: "pslverr",   width: 1,  direction: "output" }
+
+  - name: "dma_sys"
+    type: "DMA"
+    direction: "both"
+    signals:
+      - { name: "src_addr_lo",   width: 32, direction: "input",  desc: "Lower 32b source address from config" }
+      - { name: "src_addr_hi",   width: 32, direction: "input",  desc: "Upper 32b source address from config" }
+      - { name: "dst_addr_lo",   width: 32, direction: "input",  desc: "Lower 32b dest address from config" }
+      - { name: "dst_addr_hi",   width: 32, direction: "input",  desc: "Upper 32b dest address from config" }
+      - { name: "total_size",    width: 32, direction: "input",  desc: "Total transfer size in bytes" }
+      - { name: "dma_busy",      width: 1,  direction: "output", desc: "DMA operation in progress" }
+      - { name: "dma_active",    width: 1,  direction: "output", desc: "DMA actively transferring data" }
+
+  - name: "interrupt"
+    type: "interrupt"
+    direction: "output"
+    signals:
+      - { name: "dma_done",      width: 1,  direction: "output", desc: "DMA operation completed" }
+      - { name: "dma_chunk_done",width: 1,  direction: "output", desc: "Single chunk completed" }
+      - { name: "dma_error",     width: 1,  direction: "output", desc: "DMA error occurred" }
+
+registers:
+  # ── Address Registers (64-bit source/destination) ──
+  - name: "SRC_ADDR_LO"
+    offset: "0x00"
+    reset: "0x00000000"
+    description: "Lower 32 bits of source address"
+    fields:
+      - { name: "src_addr_lo",  bits: "[31:0]", access: "rw",    reset: "0x0", desc: "Source address [31:0], must be aligned to transfer width" }
+
+  - name: "SRC_ADDR_HI"
+    offset: "0x04"
+    reset: "0x00000000"
+    description: "Upper 32 bits of source address"
+    fields:
+      - { name: "src_addr_hi",  bits: "[31:0]", access: "rw",    reset: "0x0", desc: "Source address [63:32]" }
+
+  - name: "DST_ADDR_LO"
+    offset: "0x08"
+    reset: "0x00000000"
+    description: "Lower 32 bits of destination address"
+    fields:
+      - { name: "dst_addr_lo",  bits: "[31:0]", access: "rw",    reset: "0x0", desc: "Destination address [31:0], must be aligned to transfer width" }
+
+  - name: "DST_ADDR_HI"
+    offset: "0x0C"
+    reset: "0x00000000"
+    description: "Upper 32 bits of destination address"
+    fields:
+      - { name: "dst_addr_hi",  bits: "[31:0]", access: "rw",    reset: "0x0", desc: "Destination address [63:32]" }
+
+  # ── Address Space ID ──
+  - name: "ADDR_SPACE_ID"
+    offset: "0x10"
+    reset: "0x00000077"
+    description: "Address spaces for source and destination pointers"
+    fields:
+      - { name: "src_asid",     bits: "[3:0]",  access: "rw",    reset: "0x7", desc: "Source address space ID (0x7=OT, 0xA=SOC, 0x9=SYS)" }
+      - { name: "dst_asid",     bits: "[7:4]",  access: "rw",    reset: "0x7", desc: "Destination address space ID" }
+      - { name: "reserved_asid",bits: "[31:8]", access: "ro",    reset: "0" }
+
+  # ── DMA Memory Range Configuration ──
+  - name: "ENABLED_MEMORY_RANGE_BASE"
+    offset: "0x14"
+    reset: "0x00000000"
+    description: "Base of DMA enabled memory range"
+    fields:
+      - { name: "base",         bits: "[31:0]", access: "rw",    reset: "0x0", desc: "Base address marking start of DMA enabled memory range" }
+
+  - name: "ENABLED_MEMORY_RANGE_LIMIT"
+    offset: "0x18"
+    reset: "0x00000000"
+    description: "Limit of DMA enabled memory range"
+    fields:
+      - { name: "limit",        bits: "[31:0]", access: "rw",    reset: "0x0", desc: "Limit address (inclusive) marking end of DMA enabled memory range" }
+
+  - name: "RANGE_VALID"
+    offset: "0x1C"
+    reset: "0x00000000"
+    description: "Memory range validity indicator"
+    fields:
+      - { name: "range_valid",  bits: "[0]",    access: "rw",    reset: "0",  desc: "Set when ENABLED_MEMORY_RANGE_BASE/LIMIT are valid" }
+      - { name: "reserved_rng", bits: "[31:1]", access: "ro",    reset: "0" }
+
+  - name: "RANGE_REGWEN"
+    offset: "0x20"
+    reset: "0x0000000F"
+    description: "Lock for memory range configuration registers"
+    fields:
+      - { name: "regwen",       bits: "[3:0]",  access: "rw",    reset: "0xF", desc: "Range config lock (0xF=unlocked, 0x5=locked, multi-bit)" }
+      - { name: "reserved_rgw", bits: "[31:4]", access: "ro",    reset: "0" }
+
+  # ── Configuration ──
+  - name: "CFG_REGWEN"
+    offset: "0x24"
+    reset: "0x0000000F"
+    description: "Configuration lock — set by HW when DMA is busy"
+    fields:
+      - { name: "regwen",       bits: "[3:0]",  access: "ro",    reset: "0xF", desc: "Config lock status (0xF=unlocked, HW managed)" }
+      - { name: "reserved_cgw", bits: "[31:4]", access: "ro",    reset: "0" }
+
+  # ── Transfer Configuration ──
+  - name: "TOTAL_DATA_SIZE"
+    offset: "0x28"
+    reset: "0x00000000"
+    description: "Total size of data to transfer (bytes)"
+    fields:
+      - { name: "data_size",    bits: "[31:0]", access: "rw",    reset: "0x0", desc: "Total transfer size in bytes, minimum 1" }
+
+  - name: "CHUNK_DATA_SIZE"
+    offset: "0x2C"
+    reset: "0x00000000"
+    description: "Bytes per interrupt/chunk"
+    fields:
+      - { name: "chunk_size",   bits: "[31:0]", access: "rw",    reset: "0x0", desc: "Number of bytes per chunk/interrupt" }
+
+  - name: "TRANSFER_WIDTH"
+    offset: "0x30"
+    reset: "0x00000000"
+    description: "Transfer width configuration"
+    fields:
+      - { name: "transfer_width", bits: "[3:0]",  access: "rw",    reset: "0x0", desc: "Data width (0=byte, 1=halfword, 2=word, 3=doubleword)" }
+      - { name: "reserved_tw",  bits: "[31:4]", access: "ro",    reset: "0" }
+
+  # ── Control and Status ──
+  - name: "DMA_CTRL"
+    offset: "0x34"
+    reset: "0x00000000"
+    description: "DMA control register"
+    fields:
+      - { name: "start",        bits: "[0]",    access: "wo",    reset: "0",  desc: "Write 1 to start DMA transfer" }
+      - { name: "stop",         bits: "[1]",    access: "wo",    reset: "0",  desc: "Write 1 to stop DMA transfer" }
+      - { name: "enable",       bits: "[2]",    access: "rw",    reset: "0",  desc: "DMA controller enable" }
+      - { name: "chain_enable", bits: "[3]",    access: "rw",    reset: "0",  desc: "Enable chained transfers" }
+      - { name: "reserved_ctrl",bits: "[31:4]", access: "ro",    reset: "0" }
+
+  - name: "DMA_STATUS"
+    offset: "0x38"
+    reset: "0x00000000"
+    description: "DMA status register"
+    fields:
+      - { name: "busy",         bits: "[0]",    access: "ro",    reset: "0",  desc: "DMA engine busy" }
+      - { name: "active",       bits: "[1]",    access: "ro",    reset: "0",  desc: "Actively transferring" }
+      - { name: "chaining",     bits: "[2]",    access: "ro",    reset: "0",  desc: "Chained transfer in progress" }
+      - { name: "error_flag",   bits: "[3]",    access: "ro",    reset: "0",  desc: "Error occurred" }
+      - { name: "done",         bits: "[4]",    access: "ro",    reset: "0",  desc: "Transfer complete" }
+      - { name: "reserved_st",  bits: "[31:5]", access: "ro",    reset: "0" }
+
+  - name: "ERROR_CODE"
+    offset: "0x3C"
+    reset: "0x00000000"
+    description: "Error code register"
+    fields:
+      - { name: "err_code",     bits: "[3:0]",  access: "ro",    reset: "0",  desc: "Error code (1=addr_align, 2=bus_err, 3=timeout, 4=range)" }
+      - { name: "err_src_asid", bits: "[7:4]",  access: "ro",    reset: "0",  desc: "Source ASID at time of error" }
+      - { name: "err_dst_asid", bits: "[11:8]", access: "ro",    reset: "0",  desc: "Destination ASID at time of error" }
+      - { name: "reserved_err", bits: "[31:12]",access: "ro",    reset: "0" }
+
+  # ── Interrupt Configuration ──
+  - name: "INTR_STATE"
+    offset: "0x40"
+    reset: "0x00000000"
+    description: "Interrupt state (read to get pending, write 1 to clear)"
+    fields:
+      - { name: "dma_done",     bits: "[0]",    access: "w1c",   reset: "0",  desc: "DMA done interrupt pending" }
+      - { name: "dma_chunk",    bits: "[1]",    access: "w1c",   reset: "0",  desc: "Chunk done interrupt pending" }
+      - { name: "dma_err_intr", bits: "[2]",    access: "w1c",   reset: "0",  desc: "DMA error interrupt pending" }
+      - { name: "reserved_intr",bits: "[31:3]", access: "ro",    reset: "0" }
+
+  - name: "INTR_ENABLE"
+    offset: "0x44"
+    reset: "0x00000000"
+    description: "Interrupt enable"
+    fields:
+      - { name: "en_dma_done",  bits: "[0]",    access: "rw",    reset: "0",  desc: "Enable DMA done interrupt" }
+      - { name: "en_chunk",     bits: "[1]",    access: "rw",    reset: "0",  desc: "Enable chunk done interrupt" }
+      - { name: "en_error",     bits: "[2]",    access: "rw",    reset: "0",  desc: "Enable error interrupt" }
+      - { name: "reserved_ie",  bits: "[31:3]", access: "ro",    reset: "0" }
+
+  # ── Remaining Transfer Count (read-only) ──
+  - name: "REMAINING_BYTES"
+    offset: "0x48"
+    reset: "0x00000000"
+    description: "Remaining bytes to transfer"
+    fields:
+      - { name: "remaining",    bits: "[31:0]", access: "ro",    reset: "0x0", desc: "Bytes remaining in current transfer" }
+
+  # ── Address Increment Configuration ──
+  - name: "ADDR_INCR_CFG"
+    offset: "0x4C"
+    reset: "0x00000000"
+    description: "Source/destination address increment control"
+    fields:
+      - { name: "src_incr_en",  bits: "[0]",    access: "rw",    reset: "0",  desc: "Enable source address increment" }
+      - { name: "dst_incr_en",  bits: "[1]",    access: "rw",    reset: "0",  desc: "Enable destination address increment" }
+      - { name: "src_incr_val", bits: "[15:4]", access: "rw",    reset: "0",  desc: "Source address increment value (bytes)" }
+      - { name: "dst_incr_val", bits: "[27:16]",access: "rw",    reset: "0",  desc: "Destination address increment value (bytes)" }
+      - { name: "reserved_incr",bits: "[31:28]",access: "ro",    reset: "0" }
+
+# ── FSM Configuration (DMA state machine) ──
+# Auto-generates FSM controller from this section.
+# Patterns follow dma.sv v4 verified RTL:
+#   - unified always_ff (next-state + actions)
+#   - error_flag persistence (NOT cleared every cycle)
+#   - interrupt auto-set with W1C clear
+#   - iverilog 11 compatible (no inside, no unique case)
+fsm:
+  type: "dma"
+  name: "dma_fsm"
+  state_width: 3
+  host_width: 32
+  default_state: "DmaIdle"
+
+  # Interrupt configuration (auto-set by FSM, W1C cleared by APB)
+  interrupts:
+    - { name: "done",  intr_reg: "dma_done_intr_q",  enable_reg: "en_dma_done_q",  output: "intr_dma_done_o" }
+    - { name: "chunk", intr_reg: "dma_chunk_intr_q", enable_reg: "en_chunk_q",     output: "intr_dma_chunk_o" }
+    - { name: "error", intr_reg: "dma_error_intr_q", enable_reg: "en_error_q",     output: "intr_dma_error_o" }
+
+  # Status register signals (computed from next-state)
+  status_regs:
+    - { name: "busy_q",   set_cond: "state_d != DmaIdle",                                    desc: "DMA engine busy" }
+    - { name: "active_q", set_cond: "(state_d == DmaRead) || (state_d == DmaSendRead) || (state_d == DmaWaitRead) || (state_d == DmaWrite) || (state_d == DmaSendWrite) || (state_d == DmaWaitWrite)", desc: "Actively transferring" }
+
+  # Error conditions (per-state)
+  error_configs:
+    - { cond: "host_err_i && ((state_q == DmaWaitRead) || (state_q == DmaWaitWrite))", code: "4'h2", desc: "Bus error on host transaction" }
+
+verification:
+  configuration:
+    - name: "single_byte_copy"
+      description: "Single byte copy from src to dst"
+      constraints:
+        - { reg: "TRANSFER_WIDTH", field: "transfer_width", value: "0" }
+
+    - name: "word_copy"
+      description: "32-bit word copy"
+      constraints: []
+
+  test_scenarios:
+    - name: "config_src_dst_addr"
+      description: "Program source and destination 64-bit addresses via 4 address registers"
+
+    - name: "config_addr_space"
+      description: "Set source ASID to OT_ADDR, destination to SYS_ADDR"
+
+    - name: "config_memory_range"
+      description: "Program memory range base, limit, mark valid"
+
+    - name: "config_data_size"
+      description: "Program total data size and chunk size"
+
+    - name: "start_dma_transfer"
+      description: "Enable DMA, write start bit, verify busy status"
+
+    - name: "interrupt_config_enable"
+      description: "Enable all interrupts, verify enable register"
+
+    - name: "interrupt_status_clear"
+      description: "Set interrupt status bits, clear them, verify cleared"
+
+    - name: "error_status_read"
+      description: "Read error code register after simulated error"
+
+    - name: "reserved_address_pslverr"
+      description: "Access undefined address space → PSLVERR"
+
+  coverage_goals:
+    functional:
+      - "All 22 registers accessed (read/write per access type)"
+      - "64-bit source address programmed and read back"
+      - "64-bit destination address programmed and read back"
+      - "ASID source and destination configuration"
+      - "Memory range base/limit/valid configuration"
+      - "Total data size and chunk size configuration"
+      - "DMA start bit triggers busy status"
+      - "Interrupt enable/w1c/state full cycle"
+      - "Transfer width configuration"
+      - "Address increment control"
+      - "APB error on reserved address"
+    cross:
+      - "ASID x address register configuration"
+      - "Interrupt source x enable x state"

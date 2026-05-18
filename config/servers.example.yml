@@ -1,0 +1,23 @@
+# EDA Tool Configuration
+# Per-user: gitignored, copy from servers.example.yml
+
+default: vcs
+vcs:
+  path: /tools/synopsys/vcs
+  version: "2023.12"
+  uvm_home: /tools/synopsys/vcs/etc/uvm
+  license: 27000@license_server
+
+xcelium:
+  path: /tools/cadence/xcelium
+  version: "23.09"
+  uvm_home: /tools/cadence/xcelium/tools/methodology/UVM/CDNS-1.2
+
+questa:
+  path: /tools/siemens/questa
+  version: "2024.1"
+  uvm_home: /tools/siemens/questa/verilog_src/uvm-1.2
+
+verilator:
+  path: /tools/verilator
+  version: "5.022"

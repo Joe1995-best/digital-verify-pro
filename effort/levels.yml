@@ -1,0 +1,55 @@
+# Effort Level Configuration
+
+Defines verification depth for each pipeline phase.
+Analog-agents-inspired: escalate deliberately, not everything needs full PVT.
+
+| Level | When | What Runs | Purpose |
+|-------|------|-----------|---------|
+| **Lite** | First run, quick feedback | spec-analyzer → rtl-gen → env-builder → doc-gen | Smoke test: does the flow work? |
+| **Standard** | Daily iteration | All 10 phases + RTL compile + CSR test | Full regression confidence |
+| **Intensive** | Pre-commit / CI gate | All phases + RTL compile + CSR test + simple TB sim + coverage | Sign-off ready |
+| **Exhaustive** | Tape-out gate | All phases + UVM sim + EDA (Questa/VCS) + multi-seed + formal | Zero-risk sign-off |
+
+## Phase Activation by Level
+
+| Phase | Lite | Standard | Intensive | Exhaustive |
+|-------|------|----------|-----------|------------|
+| spec-analyzer | ✅ | ✅ | ✅ | ✅ |
+| rtl-gen | ✅ | ✅ | ✅ | ✅ |
+| ral-gen | ❌ | ✅ | ✅ | ✅ |
+| env-builder | ❌ | ✅ | ✅ | ✅ |
+| test-generator | ❌ | ✅ | ✅ | ✅ |
+| assertion-gen | ❌ | ✅ | ✅ | ✅ |
+| scoreboard-gen | ❌ | ✅ | ✅ | ✅ |
+| coverage-plan | ❌ | ✅ | ✅ | ✅ |
+| doc-gen | ✅ | ✅ | ✅ | ✅ |
+| sw-header-gen | ❌ | ✅ | ✅ | ✅ |
+| RTL compile | ❌ | ✅ | ✅ | ✅ |
+| CSR test | ❌ | ✅ | ✅ | ✅ |
+| Simple TB sim | ❌ | ❌ | ✅ | ✅ |
+| Coverage report | ❌ | ❌ | ✅ | ✅ |
+| UVM sim (Questa/VCS) | ❌ | ❌ | ❌ | ✅ |
+| Multi-seed regression | ❌ | ❌ | ❌ | ✅ |
+| Formal verification | ❌ | ❌ | ❌ | ✅ |
+
+## Example
+
+```bash
+# Lite: quick smoke test
+python pro_verify.py --pipeline i2c_spec.yml --phases spec-analyzer,rtl-gen,doc-gen
+
+# Standard: everyday verification (default)
+python pro_verify.py --pipeline i2c_spec.yml
+
+# Intensive: pre-commit quality gate
+python pro_verify.py --pipeline i2c_spec.yml
+python run_sim.py --spec i2c_spec.yml --check-only
+python run_csr_test_gen.py --spec i2c_spec.yml
+python run_sim.py --spec i2c_spec.yml --gen-tb
+
+# Exhaustive: release sign-off
+python pro_verify.py --pipeline i2c_spec.yml
+python run_sim.py --spec i2c_spec.yml --all
+python run_sim.py --spec i2c_spec.yml --gen-eda
+python run_csr_test_gen.py --spec i2c_spec.yml
+```
