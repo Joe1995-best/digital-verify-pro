@@ -1,10 +1,13 @@
-# Verification Sign-Off Checklist
+# Verification Sign-Off Checklist [COMMON]
+
+[COMMON] = 通用检查项，适用于所有 IP 模块。
+
 
 参考 OpenTitan IP 验证签收流程，结合 digital-verify-pro 框架定制。
 
 ---
 
-## Phase 1: Spec Completeness Review (DSR)
+## Phase 1: Spec Completeness Review (DSR) [COMMON]
 
 ### 1.1 Interface Completeness
 
@@ -33,7 +36,7 @@
 
 ---
 
-## Phase 2: Feature Extraction & Testplan Mapping (TPR)
+## Phase 2: Feature Extraction & Testplan Mapping (TPR) [COMMON]
 
 ### 2.1 功能点提取
 
@@ -53,9 +56,9 @@
 | F10 | 地址增量 | `incr_config` | incr_test | ✅ |
 | ... | ... | ... | ... | |
 
-### 2.2 Feature-to-Test Matrix
+### 2.2 Feature-to-Test Matrix [MODULE: dma]
 
-```
+``` [MODULE: dma]
                  | reg  | single| multi | byte |half|chunk|error|stop|incr|multi|
 -----------------|------|-------|-------|------|----|-----|-----|----|----|-----|
 寄存器复位值      |  ✅  |       |       |      |    |     |     |    |    |     |
@@ -76,7 +79,7 @@ DMA 停机         |      |       |       |      |    |     |     | ✅  |    | 
 - [ ] **所有功能点被测试的 observability 点确认**（assertion / scoreboard / direct check）
 - [ ] **边界/异常功能点有独立测试**（错误注入、保留地址、max-size 传输）
 
-### 2.3 约束随机测试计划
+### 2.3 约束随机测试计划 [COMMON]
 
 适用于 VRF (Verification Random Framework) 或 UVM 的约束随机验证。
 
@@ -112,7 +115,7 @@ DMA 停机         |      |       |       |      |    |     |     | ✅  |    | 
 
 ---
 
-## Phase 3: RTL Generation Review (RTL-GEN)
+## Phase 3: RTL Generation Review (RTL-GEN) [COMMON]
 
 ### 3.1 生成代码标准
 
@@ -140,7 +143,7 @@ DMA 停机         |      |       |       |      |    |     |     | ✅  |    | 
 
 ---
 
-## Phase 4: Simulation Results Review (SIM)
+## Phase 4: Simulation Results Review (SIM) [COMMON]
 
 ### 4.1 功能测试
 
@@ -170,7 +173,7 @@ DMA 停机         |      |       |       |      |    |     |     | ✅  |    | 
 
 ---
 
-## Phase 5: Coverage Closure (CCR)
+## Phase 5: Coverage Closure (CCR) [COMMON]
 
 ### 5.1 Toggle Coverage
 
@@ -206,7 +209,7 @@ DMA 停机         |      |       |       |      |    |     |     | ✅  |    | 
 
 ---
 
-## Phase 6: Sign-Off (SO)
+## Phase 6: Sign-Off (SO) [COMMON]
 
 ### 6.1 签收标准
 
@@ -257,7 +260,7 @@ python run_dma_convergence.py
 ```
 
 
-### 5.4 Review-Checklist 联动
+### 5.4 Review-Checklist 联动 [COMMON]
 
 review skill 发现的每个 CRITICAL/HIGH 问题关联到 Checklist Phase:
 
@@ -281,7 +284,7 @@ python tools/review_to_checklist.py \
 
 ---
 
-## Appendix: OpenTitan Alignment
+## Appendix: OpenTitan Alignment [COMMON]
 
 See checklists/opentitan_alignment.md for the full OpenTitan alignment supplement.
 

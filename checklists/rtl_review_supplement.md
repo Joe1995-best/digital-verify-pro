@@ -1,8 +1,8 @@
-# RTL Review Checklist (Supplement)
+# RTL Review Checklist (Supplement) [COMMON]
 
 ---
 
-## S7: CDC/RDC — 时钟域交叉 / 复位域交叉
+## S7: CDC/RDC — 时钟域交叉 / 复位域交叉 [COMMON]
 
 ### S7.1 CDC 基础
 
@@ -67,7 +67,7 @@
 
 ---
 
-## S8: 形式验证检查清单
+## S8: 形式验证检查清单 [COMMON]
 
 适用于 `formal_check_gen.py` + SymbiYosys (sby) 的形式验证流程。
 
@@ -115,7 +115,7 @@
 
 ---
 
-## S9: Review → Checklist 联动
+## S9: Review → Checklist 联动 [COMMON]
 
 review skill 的输出自动生成 checklist 追踪条目。
 

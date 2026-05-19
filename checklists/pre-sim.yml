@@ -1,7 +1,7 @@
 # Digital Verification Checklist — Pre/Post Simulation
 # Merged into full verification_checklist.md for consistency.
 
-## Pre-Simulation Checklist
+## Pre-Simulation Checklist [COMMON]
 - [ ] All interface signals declared
 - [ ] Clocking blocks have correct direction
 - [ ] Driver: all protocol states handled
@@ -13,7 +13,7 @@
 - [ ] No UVM_FATAL in elaboration
 - [ ] Review skill passed (0 CRITICAL)
 
-## Post-Simulation Checklist
+## Post-Simulation Checklist [COMMON]
 - [ ] All tests pass
 - [ ] Coverage goals met (> 90% toggle, > 90% functional)
 - [ ] No unexpected UVM_ERROR/UVM_FATAL
@@ -24,7 +24,7 @@
 - [ ] Coverage gap analysis complete
 - [ ] Review findings vs coverage gaps cross-referenced
 
-## Coverage Convergence Trigger
+## Coverage Convergence Trigger [COMMON]
 When coverage < 90%:
   1. Run review skill on RTL → find connectivity bugs
   2. Fix bugs → re-run simulation → measure improvement

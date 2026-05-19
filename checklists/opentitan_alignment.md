@@ -1,10 +1,10 @@
-# OpenTitan Verification Alignment — Checklist Supplement
+# OpenTitan Verification Alignment [COMMON] — Checklist Supplement
 
 对照 OpenTitan (lowRISC) 验证方法论，填补 digital-verify-pro checklist 缺口。
 
 ---
 
-## OT-S1: CSR 自动测试生成与签收
+## OT-S1: CSR 自动测试生成与签收 [COMMON]
 
 OpenTitan 从统一 spec 生成 CSR 测试序列，逐字段验证 RW/RO/W1C/WO。
 
@@ -27,7 +27,7 @@ python pipeline/run_csr_test_gen.py --spec spec.yml --out output/
 
 ---
 
-## OT-S2: 多种子回归 (Multi-Seed Regression)
+## OT-S2: 多种子回归 (Multi-Seed Regression) [COMMON]
 
 OpenTitan 每个测试用 100+ 随机种子运行，确保随机稳定性。
 
@@ -54,7 +54,7 @@ python run_sim.py --spec spec.yml --seeds 100 --out regression/
 
 ---
 
-## OT-S3: Verilator Lint 与代码质量门禁
+## OT-S3: Verilator Lint 与代码质量门禁 [COMMON]
 
 OpenTitan 对生成的 RTL 运行 Verilator lint 检查。
 
@@ -74,7 +74,7 @@ python run.py --dir output/rtl/rtl/           # review skill
 
 ---
 
-## OT-S4: UVM RAL 单源一致性
+## OT-S4: UVM RAL 单源一致性 [COMMON]
 
 OpenTitan 保证 UVM RAL (寄存器抽象层) 与 RTL 来自同一份 spec。
 
@@ -100,7 +100,7 @@ OpenTitan 保证 UVM RAL (寄存器抽象层) 与 RTL 来自同一份 spec。
 
 ---
 
-## OT-S5: 功能覆盖度逐特征分组
+## OT-S5: 功能覆盖度逐特征分组 [COMMON]
 
 OpenTitan 将覆盖度按特征分组，每个 feature 独立达标。
 
@@ -135,7 +135,7 @@ python coverage_check.py --spec spec.yml --vcd results/*.vcd
 
 ---
 
-## OT-S6: 故障注入 (Fault Injection)
+## OT-S6: 故障注入 (Fault Injection) [COMMON]
 
 OpenTitan 验证错误路径：协议错误、超时、数据损坏。
 
@@ -156,7 +156,7 @@ python run_test_generator.py --spec spec.yml --error-inject --out output/
 
 ---
 
-## OT-S7: X-Propagation Formal 检查
+## OT-S7: X-Propagation Formal 检查 [COMMON]
 
 OpenTitan 运行正式 X 传播分析确保无 X 影响功能。
 
@@ -176,7 +176,7 @@ sby -f xprop.sby
 
 ---
 
-## OT-S8: 代码覆盖度合并
+## OT-S8: 代码覆盖度合并 [COMMON]
 
 OpenTitan 合并多轮运行的覆盖度数据用于签收。
 
@@ -198,7 +198,7 @@ python engines/coverage_engine.py \
 
 ---
 
-## OT-S9: DV Plan 文档化
+## OT-S9: DV Plan 文档化 [COMMON]
 
 OpenTitan 每 IP 有完整 DV 计划文档。
 
@@ -224,7 +224,7 @@ cat output/verification-close-report.md
 
 ---
 
-## OT-S10: 签收 Tag 与 Release 管理
+## OT-S10: 签收 Tag 与 Release 管理 [COMMON]
 
 OpenTitan 使用 git tag 和 CI 门禁确保可追溯性。
 
@@ -249,7 +249,7 @@ git tag -a "spi_slave_v1.0_2026-05-19" -m "SPI Slave sign-off: 9/9 PASS, 65.7% c
 
 ---
 
-## 缺口汇总 (OpenTitan vs Current)
+## 缺口汇总 (OpenTitan vs Current) [COMMON]
 
 | # | 实践 | Our Checklist | 优先级 |
 |:-:|:-----|:-------------|:------:|

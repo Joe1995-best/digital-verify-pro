@@ -1,10 +1,13 @@
-# RTL Review Checklist
+# RTL Review Checklist [COMMON]
 
 基于验证经验归纳的 RTL 代码审查清单，确保可综合、可仿真、覆盖友好。
 
+`[COMMON]` = 通用检查项，适用于所有 IP 模块。
+`[MODULE: xxx]` = 仅特定模块（如 dma/i2c/spi）适用的检查项或示例。
+
 ---
 
-## S1: 可综合风格
+## S1: 可综合风格 [COMMON]
 
 ### S1.1 always_ff 规范
 
@@ -42,7 +45,7 @@
 
 ---
 
-## S2: iverilog 11 兼容
+## S2: iverilog 11 兼容 [COMMON]
 
 ### S2.1 语法子集
 
@@ -61,9 +64,11 @@
 
 ---
 
-## S3: 覆盖友好设计
+## S3: 覆盖友好设计 [COMMON]
 
-### S3.1 错误/状态信号持久化
+### S3.1 错误/状态信号持久化 [COMMON]
+
+> 以下示例使用 DMA 信号命名，但规则适用于所有 FSM 类 IP。
 
 - [ ] **`error_flag` 不清零**: `error_flag_q <= error_flag_q` 保持，`error_flag_q <= 1'b0` 只在复位时
   ```verilog
@@ -95,7 +100,7 @@
 
 ---
 
-## S4: 寄存器 RTL 规范
+## S4: 寄存器 RTL 规范 [COMMON]
 
 ### S4.1 位域正确性
 
@@ -130,7 +135,7 @@
 
 ---
 
-## S5: FSM 设计规范
+## S5: FSM 设计规范 [COMMON]
 
 ### S5.1 状态编码
 
@@ -157,7 +162,7 @@
 
 ---
 
-## S6: 自动生成 RTL 附加检查
+## S6: 自动生成 RTL 附加检查 [COMMON]
 
 适用于 `run_rtl_gen.py` 生成的 RTL 代码：
 
@@ -171,7 +176,7 @@
 
 ---
 
-## RTL Review 逐行标注示例
+## RTL Review 逐行标注示例 [MODULE: dma]
 
 ```verilog
 // RTL 审查标注示例: dma.sv — DMA FSM
@@ -202,7 +207,7 @@ always_ff @(posedge clk_i or negedge rst_ni) begin
 
 ---
 
-## RTL Review 流程
+## RTL Review 流程 [COMMON]
 
 ```
 1. 代码结构审查     → S1 （可综合风格）
