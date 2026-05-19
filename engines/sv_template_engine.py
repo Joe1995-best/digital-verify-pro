@@ -53,8 +53,8 @@ class SVTemplateEngine:
             ports=ports,
             **kwargs)
 
-    @staticmethod
-    def spec_to_regdefs(spec: Dict) -> List[RegDef]:
+    @classmethod
+    def spec_to_regdefs(cls, spec: Dict) -> List[RegDef]:
         """从 spec dict 提取 RegDef 列表。"""
         regs = []
         for r in spec.get("registers", []):
@@ -62,8 +62,8 @@ class SVTemplateEngine:
                 name=r["name"],
                 offset=r.get("offset", "0x00"),
                 reset=r.get("reset", "0").replace("0x", ""),
-                is_wire=self._is_readonly(r),
-                write_expr=self._write_expr(r),
+                is_wire=cls._is_readonly(r),
+                write_expr=cls._write_expr(r),
                 fields=r.get("fields", []),
             ))
         return regs

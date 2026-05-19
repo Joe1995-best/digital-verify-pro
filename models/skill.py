@@ -91,52 +91,76 @@ class SkillRegistry:
         return discovered
 
     def _register_from_dir(self, d: Path) -> None:
-        """尝试从目录加载并注册 skill。"""
+        """尝试从目录加载并注册 skill。
+        注意: 部分 run.py 在 import 时即有副作用（读取 spec 文件等），
+        跳过不可加载的 skill，不影响其他 skill。
+        """
         try:
             import importlib.util
             run_py = d / "run.py"
+            if not run_py.exists():
+                return
+            # 先检查是否有 main 函数引用
+            source = run_py.read_text(encoding="utf-8", errors="replace")
+            if "def main" not in source and "from_module_import_main" not in source:
+                # 检查 run.py 是否有 main 导入
+                has_main_import = any(
+                    line.strip().startswith("from ") and "import main" in line
+                    for line in source.split("\n")
+                ) if source else False
+                if not has_main_import:
+                    return
+            # 加载模块
             spec = importlib.util.spec_from_file_location(
                 f"standalone_{d.name}", run_py
             )
             if spec and spec.loader:
                 mod = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(mod)
+                # 捕获导入时的副作用
+                try:
+                    spec.loader.exec_module(mod)
+                except SystemExit:
+                    pass  # run.py 中 sys.exit() 在导入时被触发
+                except Exception:
+                    pass
                 if hasattr(mod, "main"):
-                    # Create adapter for non-ABC skills
                     self._register_adapter(d.name, mod)
         except Exception:
             pass  # Silently skip malformed skills
 
     def _register_adapter(self, name: str, mod) -> None:
-        """为当前无 ABC 包装的 skill 创建适配器。"""
+        """为当前无 ABC 包装的 skill 创建适配器。
+        注意: main() 不在注册时调用，仅保存引用。
+        """
         main_fn = getattr(mod, "main", None)
-        if main_fn:
 
-            class SkillAdapter(VerificationSkill):
-                @property
-                def name(self) -> str:
-                    return name
+        class SkillAdapter(VerificationSkill):
+            @property
+            def name(self) -> str:
+                return name
 
-                @property
-                def version(self) -> str:
-                    return getattr(mod, "__version__", "1.0.0")
+            @property
+            def version(self) -> str:
+                return getattr(mod, "__version__", "1.0.0")
 
-                def run(self, ctx: SkillContext) -> SkillResult:
-                    import sys, io
-                    old_stdout = sys.stdout
-                    sys.stdout = buf = io.StringIO()
-                    try:
-                        ret = main_fn()
-                        return SkillResult(success=ret == 0, output=buf.getvalue())
-                    except Exception as e:
-                        return SkillResult(success=False, output=str(e))
-                    finally:
-                        sys.stdout = old_stdout
+            def run(self, ctx: SkillContext) -> SkillResult:
+                if main_fn is None:
+                    return SkillResult(success=False, output="No main() entry point")
+                import sys, io
+                old_stdout = sys.stdout
+                sys.stdout = buf = io.StringIO()
+                try:
+                    ret = main_fn()
+                    return SkillResult(success=ret == 0, output=buf.getvalue())
+                except Exception as e:
+                    return SkillResult(success=False, output=str(e))
+                finally:
+                    sys.stdout = old_stdout
 
-                def quality(self) -> QualityReport:
-                    return QualityReport()
+            def quality(self) -> QualityReport:
+                return QualityReport()
 
-            self.register(SkillAdapter())
+        self.register(SkillAdapter())
 
     @property
     def all(self) -> List[VerificationSkill]:
