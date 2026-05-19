@@ -1,4 +1,4 @@
-# Protocol Timing Diagrams (Text)
+# Protocol Timing Diagrams (Text) [COMMON]
 
 ## APB Write
 ```

@@ -1,11 +1,14 @@
-# FSM Design Patterns for Verification
+# FSM Design Patterns [COMMON]
+
+> 标注 [MODULE: xxx] 的章节使用特定 IP 作为示例，规则本身通用。
+ for Verification
 
 This guide covers best practices for FSM design, auto-generation from spec YAML,
 error flag persistence patterns, and interrupt management with W1C (write-1-to-clear).
 
 ---
 
-## 1. FSM Auto-Generation from Spec
+## 1. FSM Auto-Generation from Spec [EXAMPLES: dma/i2c/spi]
 
 The Digital Verify Pro pipeline generates synthesizable FSM RTL from the `fsm:`
 section in spec YAML files. The generator produces:
@@ -59,7 +62,7 @@ fsm:
 
 ---
 
-## 2. Error Flag Persistence Pattern
+## 2. Error Flag Persistence Pattern [COMMON]
 
 Protocol controllers often capture error conditions (overflows, underflows, framing errors)
 that must persist until explicitly acknowledged. Three patterns:
@@ -119,7 +122,7 @@ assign w1c_active = psel && penable && pwrite && (paddr == STATUS_OFFSET);
 
 ---
 
-## 3. Interrupt Management — W1C Pattern
+## 3. Interrupt Management — W1C Pattern [COMMON]
 
 W1C is the dominant pattern for interrupt status registers in real-world controllers
 (ARM PrimeCell, Synopsys DW_apb_uart, etc.).
@@ -179,7 +182,7 @@ intr       ░░████████████░░░░░░░░░
 
 ---
 
-## 4. Protocol-Specific FSM Patterns
+## 4. Protocol-Specific FSM Patterns [EXAMPLES: i2c/spi]
 
 ### I2C FSM
 

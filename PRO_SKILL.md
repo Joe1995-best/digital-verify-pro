@@ -9,7 +9,10 @@ description: |
   testbench, simulation, register model, CSR, FSM, DMA, coverage convergence
 ---
 
-# Digital Verify Pro
+# Digital Verify Pro [COMMON]
+
+> **范围说明**: 本章档描述项目整体架构。标注 `[MODULE: dma]` 的章节使用 DMA 作为示例，
+> 规则本身适用于所有 IP。标注 `[EXAMPLES: dma/i2c/spi]` 的示例为非通用。
 
 专业级数字芯片验证系统。双模式、覆盖度收敛、checklist 驱动签收。
 
@@ -29,7 +32,7 @@ digital-verify-pro 不遗漏任何一点。
 
 ---
 
-## 双验证模式
+## 双验证模式 [MODULE: dma]
 
 ```
                           ot_dma_spec.yml
@@ -106,7 +109,7 @@ digital-verify-pro 不遗漏任何一点。
 
 ---
 
-## 核心技术
+## 核心技术 [COMMON]
 
 ### VRF (Verification Random Framework)
 
@@ -156,7 +159,7 @@ end
 
 ---
 
-## 测试套件
+## 测试套件 [MODULE: dma]
 
 ### Mode 1: 手写 RTL (22 tests)
 
@@ -180,7 +183,7 @@ end
 
 ---
 
-## 覆盖度收敛
+## 覆盖度收敛 [MODULE: dma]
 
 ### 流水线 (run_dma_convergence.py)
 
@@ -200,7 +203,7 @@ end
 
 ---
 
-## Checklist 体系
+## Checklist 体系 [COMMON]
 
 ### 验证签收清单 (`checklists/verification_checklist.md`)
 
@@ -226,7 +229,7 @@ end
 
 ---
 
-## 项目结构
+## 项目结构 [COMMON]（快速开始示例使用 DMA）
 
 ```
 digital-verify-pro/
@@ -274,7 +277,7 @@ digital-verify-pro/
 
 ---
 
-## 快速开始
+## 快速开始 [MODULE: dma]
 
 ```bash
 # Mode 1: 手写 RTL 验证
@@ -296,7 +299,7 @@ vvp sim
 
 ---
 
-## RTL 设计规范
+## RTL 设计规范 [COMMON]
 
 ### always_ff 模式（所有新 RTL 必须遵守）
 
@@ -352,7 +355,7 @@ case (state_q)
 
 ---
 
-## 验证过的 IP
+## 验证过的 IP [ALL]
 
 | IP | 手写 RTL | 生成 RTL | 覆盖度 | 状态 |
 |----|:--------:|:--------:|:------:|:----:|

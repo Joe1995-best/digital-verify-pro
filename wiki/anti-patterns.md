@@ -1,4 +1,4 @@
-# Verification Anti-Patterns
+# Verification Anti-Patterns [COMMON]
 
 ## 1. Scoreboard with no timing check
 Just comparing data values isn't enough — verify the data arrived at the right cycle.

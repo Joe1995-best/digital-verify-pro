@@ -1,11 +1,11 @@
-# Coverage Closure: Lessons from the Field
+# Coverage Closure: Lessons from the Field [COMMON]
 
 How to close coverage on RTL blocks efficiently. Covers toggle gap triage,
 feedback loops from VCD analysis, and practical strategies for functional closure.
 
 ---
 
-## 1. Toggle Gap Classification
+## 1. Toggle Gap Classification [COMMON]
 
 Not all uncovered toggles are real coverage holes. Classify gaps before chasing them:
 
@@ -52,7 +52,7 @@ Uncovered toggle?
 
 ---
 
-## 2. From VCD to Directed Test: Feedback Loop
+## 2. From VCD to Directed Test: Feedback Loop [COMMON]
 
 The most efficient coverage closure workflow:
 
@@ -100,7 +100,7 @@ python pipeline/coverage_to_tests.py --vcd output_i2c/top.vcd --spec i2c_spec.ym
 
 ---
 
-## 3. FSM Coverage Closure
+## 3. FSM Coverage Closure [COMMON]
 
 FSM coverage needs three metrics:
 
@@ -135,7 +135,7 @@ These can be checked with either:
 
 ---
 
-## 4. Register Coverage Closure
+## 4. Register Coverage Closure [COMMON]
 
 ### Three-Point Verification
 
@@ -168,7 +168,7 @@ Expected coverage from CSR auto-test:
 
 ---
 
-## 5. Practical Closure Strategy
+## 5. Practical Closure Strategy [ALL]
 
 ### For Small Blocks (< 50K gates)
 
@@ -204,7 +204,7 @@ Expected coverage from CSR auto-test:
 
 ---
 
-## 6. Tools Integration
+## 6. Tools Integration [COMMON]
 
 ```
 Pipeline Stage: coverage-plan
