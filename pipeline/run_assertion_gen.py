@@ -7,9 +7,12 @@ sys.path.insert(0, os.path.dirname(__file__))
 from template_engine import build_spec_data, render_to_file
 
 BASE_DIR = os.path.dirname(__file__)
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(description="Assertion generator — dual-track SVA")
 parser.add_argument("--spec", default="")
 parser.add_argument("--out", default=os.path.join(BASE_DIR, "..", "output"))
+parser.add_argument("--simulator", default="iverilog",
+                    choices=["iverilog", "questa", "vcs", "all"],
+                    help="Simulator target: iverilog=process, questa/vcs=SVA, all=both")
 args = parser.parse_args()
 
 SPEC_PATH = args.spec if args.spec else os.path.join(BASE_DIR, "..", "i2c_spec.yml")
@@ -24,13 +27,26 @@ OUT_DIR = os.path.abspath(args.out)
 ASRT_DIR = os.path.join(OUT_DIR, "rtl", "verification", "env", "assertions")
 os.makedirs(ASRT_DIR, exist_ok=True)
 
+# 将 simulator 参数注入模板数据
+sim = args.simulator
+data["simulator"] = sim
+data["enable_sva"] = "1" if sim in ("questa", "vcs", "all") else "0"
+
+# 渲染断言模板
 render_to_file("assertions/apb_assert.sv.tpl", data, os.path.join(ASRT_DIR, "apb_assert.sv"))
+
+# 标准 SVA 断言（仅 questa/vcs/all 时生成）
+if sim in ("questa", "vcs", "all"):
+    render_to_file("sv/sva_assertions.sv", data, os.path.join(ASRT_DIR, "sva_assertions.sv"))
+
 render_to_file("assertions/reset_assert.sv.tpl", data, os.path.join(ASRT_DIR, "reset_assert.sv"))
 render_to_file("assertions/reg_assert.sv.tpl", data, os.path.join(ASRT_DIR, "reg_assert.sv"))
 
 print(f"{'='*60}")
+sva_mode = f"SVA({sim})" if sim in ("questa","vcs") else "process(iverilog)"
 print(f"  ASSERTION-GEN — {module.upper()}")
-print(f"  APB(8) + REG(1) + RST(-) = 9+ assertions")
+print(f"  Mode: {sva_mode}")
+print(f"  APB(8) + SVA(4) + REG(1) + RST(-) = 13+ assertions")
 print(f"{'='*60}")
 
 from validators import validate_assertion_gen
