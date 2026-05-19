@@ -516,3 +516,53 @@ def validate_formal_check(out_dir: str) -> Dict:
     
     passed = len([i for i in issues if i["severity"] == "ERROR"]) == 0
     return {"passed": passed, "issues": issues}
+
+
+
+def validate_spec_with_pydantic(spec_path: str) -> dict:
+    """Use Pydantic Spec model to validate spec file.
+    Falls back to dict validation when Pydantic is unavailable."""
+    try:
+        from models.spec import Spec
+    except ImportError:
+        return {"passed": True, "issues": [{"severity": "INFO",
+                "message": "Pydantic not available, skipping typed validation"}]}
+
+    issues = []
+    try:
+        spec = Spec.from_yaml(spec_path)
+        issues.append({"severity": "INFO", "file": spec_path,
+                      "message": f"Pydantic OK: {spec.module_name}, {len(spec.registers)} regs"})
+
+        # Register offset overlap detection
+        offsets = {}
+        for r in spec.registers:
+            off = int(r.offset, 16)
+            if off in offsets:
+                issues.append({"severity": "ERROR", "file": spec_path,
+                              "message": f"Offset overlap: {r.name}({r.offset}) and {offsets[off]}"})
+            offsets[off] = r.name
+
+        # Field bounds checking
+        for r in spec.registers:
+            for fld in r.fields:
+                bits = fld.bits.strip("[]")
+                if ":" in bits:
+                    msb, lsb = bits.split(":")
+                    if int(msb) > 31 or int(lsb) < 0:
+                        issues.append({"severity": "ERROR", "file": spec_path,
+                                      "message": f"{r.name}.{fld.name}: bits {fld.bits} out of range [31:0]"})
+
+        # Interface signal completeness
+        for iface in spec.interfaces:
+            for sig in iface.signals:
+                if not sig.name or not sig.direction:
+                    issues.append({"severity": "ERROR", "file": spec_path,
+                                  "message": f"{iface.name}: signal missing name or direction"})
+
+    except Exception as e:
+        issues.append({"severity": "ERROR", "file": spec_path,
+                      "message": f"Pydantic validation failed: {e}"})
+
+    passed = len([i for i in issues if i["severity"] == "ERROR"]) == 0
+    return {"passed": passed, "issues": issues}

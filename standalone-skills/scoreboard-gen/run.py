@@ -1,44 +1,10 @@
 #!/usr/bin/env python3
-"""
-scoreboard-gen — UVM scoreboard generation.
-
-Usage:
-    python run.py --spec <spec.yml> [--out output_dir]
-"""
-import sys
-import os
-
-_this_dir = os.path.dirname(os.path.abspath(__file__))
-_lib_dir = os.path.join(_this_dir, "lib")
-if _lib_dir not in sys.path:
-    sys.path.insert(0, _lib_dir)
-if _this_dir not in sys.path:
-    sys.path.insert(0, _this_dir)
-
-import importlib.util
-
-def _monkey_patch(name, path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules[name] = mod
-    spec.loader.exec_module(mod)
-
-for fname in ["template_engine.py", "validators.py"]:
-    fpath = os.path.join(_lib_dir, fname)
-    if os.path.exists(fpath):
-        _monkey_patch(fname.replace(".py", ""), fpath)
-
-import run_scoreboard_gen
-
-
-# =============================================================================
-# scoreboard-gen — UVM scoreboard and checker generator
-#
-# Generates UVM scoreboard with TLM analysis ports, predictor logic,
-# and data comparison modules for end-to-end verification.
-#
-# Key functions:
-#   main() - CLI entry point
-#
-# Dependencies: Python >= 3.10
-# =============================================================================
+"""scoreboard-gen v2 — UVM scoreboard generator from spec data."""
+import sys, os
+_d = os.path.dirname(os.path.abspath(__file__))
+if _d not in sys.path: sys.path.insert(0, _d)
+lib = os.path.join(_d, "lib")
+if os.path.exists(lib) and lib not in sys.path: sys.path.insert(0, lib)
+from run_scoreboard_gen import main
+if __name__ == "__main__":
+    sys.exit(main())

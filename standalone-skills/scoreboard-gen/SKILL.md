@@ -1,67 +1,52 @@
 ---
 name: scoreboard-gen
-version: 1.0.0
+version: 2.0.0
 description: >
-  Generate UVM scoreboard and checker components. Creates data comparison,
-  protocol checking, and end-to-end data integrity verification.
-  Protocol-agnostic scoreboard generation from spec YAML.
+  UVM scoreboard and checker generator (v2). Generates full UVM scoreboard
+  with TLM analysis ports, predictor, comparator, coverage collection,
+  and end-to-end data integrity verification.
 ---
 
-# scoreboard-gen v1.0.0
+# scoreboard-gen v2.0.0
 
-**Verifier Agent** — Scoreboard and checker generation.
+**UVM Scoreboard Generator** — From spec to complete, compilable scoreboard.
 
 ## Quick Start
 
 ```bash
 cd standalone-skills/scoreboard-gen
-python run.py --spec ../../i2c_spec.yml
-python run.py --spec ../../i2c_spec.yml --out verification_output
+python run.py --spec ../../i2c_spec.yml --out output
 ```
 
 ## Inputs
 
-| Input | Source | Required | Description |
-|-------|--------|----------|-------------|
-| `--spec <file>` | CLI arg | yes | Path to spec YAML file |
-| `--out <dir>` | CLI arg | no | Output directory (default: output/) |
+| Input | Source | Required |
+|-------|--------|----------|
+| `--spec <file>` | CLI arg | yes |
+| `--out <dir>` | CLI arg | no |
 
-## Outputs (into `rtl/verification/env/scoreboard/`)
+## Outputs
 
 | File | Description |
 |------|-------------|
-| `{module}_sb.sv` | Scoreboard with comparison logic |
+| `sb.sv` | Main scoreboard: TLM analysis ports, packet queue, comparison loop |
+| `sb_predictor.sv` | Predictor: generates expected transactions from monitored activity |
+| `sb_coverage.sv` | Coverage collector: functional coverage for all transactions |
 
 ## Capabilities
 
-### 1. Scoreboard Generation
-- Expected vs actual data comparison
-- Transaction-level checking
-- Ordering checks for in-order protocols
+### 1. Full UVM Scoreboard
+- TLM analysis exports (mon_a_export, mon_b_export)
+- Transaction queue with expected/actual matching
+- Out-of-order transaction support
+- Timeout detection for lost transactions
 
-### 2. Protocol Checking
-- Interface-level protocol compliance
-- Data integrity verification
-- End-to-end transaction checking
+### 2. Programmable Predictor
+- Register-model-aware prediction
+- Supports pipelined transactions
+- Configurable latency model
 
-### 3. Post-Generation Validation
-- Scoreboard structural validation
-- SV file consistency checks
-
-## Dependencies
-
-- **Python**: >= 3.10
-- **Runtime**: none (pure Python standard library)
-- **Internal**: `lib/template_engine.py`, `lib/validators.py`
-- **OS**: Windows / Linux / macOS
-
-## Upstream
-
-- `spec-analyzer` — consumes verification plan + interface list
-- `regmodel-gen` — optionally consumes register map for expected values
-
-## Downstream
-
-- `tb-compiler` — consumes scoreboard for compilation
-- `sim-runner` — scoreboard active during simulation
-- `doc-gen` — includes scoreboard in verification close report
+### 3. Coverage Collection
+- Per-transaction-type covergroups
+- Data value coverage (bins for each byte lane)
+- Protocol-specific cross coverage
