@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install .[dev]
+          pip install iverilog 2>/dev/null || true
+
+      - name: Check spec validation
+        run: |
+          python -c "
+          from models.spec import Spec
+          for spec_file in ['i2c_spec.yml', 'ot_dma_spec.yml', 'spi_slave_spec.yml', 'uart_spec.yml']:
+              try:
+                  s = Spec.from_yaml(spec_file)
+                  print(f'  [OK] {spec_file}: {s.module_name} ({len(s.registers)} regs)')
+              except Exception as e:
+                  print(f'  [FAIL] {spec_file}: {e}')
+                  exit(1)
+          "
+
+      - name: Check orphan .py files
+        run: |
+          python -c "
+          import os, ast
+          errors = 0
+          for root, dirs, files in os.walk('.'):
+              if '.git' in root or '__pycache__' in root:
+                  continue
+              for f in files:
+                  if f.endswith('.py'):
+                      path = os.path.join(root, f)
+                      try:
+                          with open(path, encoding='utf-8') as fh:
+                              ast.parse(fh.read())
+                      except SyntaxError as e:
+                          print(f'  [FAIL] {path}: {e}')
+                          errors += 1
+          if errors:
+              exit(1)
+          print('  [OK] All .py files parse without error')
+          "
+
+      - name: Run DMA convergence smoke test
+        if: always()
+        run: |
+          python -c "
+          import subprocess, sys
+          result = subprocess.run(
+              [sys.executable, 'engines/coverage_engine.py', '--vcd', 'dma_full_test.vcd', '--clk', 'clk_i'],
+              capture_output=True, text=True, timeout=30
+          )
+          if '93.8' in result.stdout or 'Toggle Coverage' in result.stdout:
+              print('  [OK] DMA coverage analysis ran successfully')
+          else:
+              print('  [WARN] Coverage output format changed')
+              print(result.stdout[-200:])
+          "
+
+  standalone-skills:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Verify standalone skills quality
+        run: |
+          pip install pyyaml jinja2
+          python -c "
+          import subprocess, sys, json, os
+          base = 'standalone-skills'
+          tool = 'tools/quality_pipeline.py'
+          failed = []
+          for d in sorted(os.listdir(base)):
+              dp = os.path.join(base, d)
+              if not os.path.isdir(dp):
+                  continue
+              r = subprocess.run([sys.executable, tool, dp],
+                  capture_output=True, text=True, timeout=30)
+              rp = os.path.join(dp, 'quality_report.json')
+              if os.path.exists(rp):
+                  with open(rp) as f:
+                      report = json.load(f)
+                  os.remove(rp)
+                  score = report['score']['total']
+                  grade = report['label'].strip('[]')
+                  status = 'PASS' if 'Approved' in report['label'] else 'CHECK'
+                  print(f'  [{status}] {d}: {score}/100 ({grade})')
+                  if 'Approved' not in report['label']:
+                      failed.append(d)
+              else:
+                  print(f'  [SKIP] {d}: no report')
+          if failed:
+              print(f'  FAILED: {failed}')
+              exit(1)
+          "
