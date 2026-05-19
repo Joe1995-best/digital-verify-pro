@@ -1,0 +1,4 @@
+# spec-analyzer v2.0.0
+pyyaml>=6.0
+jinja2>=3.0
+# (template_engine and validators are bundled in lib/)

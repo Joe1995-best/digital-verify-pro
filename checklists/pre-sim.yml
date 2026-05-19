@@ -1,6 +1,7 @@
-## Digital Verification Checklists
+# Digital Verification Checklist — Pre/Post Simulation
+# Merged into full verification_checklist.md for consistency.
 
-### Pre-Simulation Checklist
+## Pre-Simulation Checklist
 - [ ] All interface signals declared
 - [ ] Clocking blocks have correct direction
 - [ ] Driver: all protocol states handled
@@ -10,21 +11,22 @@
 - [ ] Register model: addresses match spec
 - [ ] No compilation errors
 - [ ] No UVM_FATAL in elaboration
+- [ ] Review skill passed (0 CRITICAL)
 
-### Post-Simulation Checklist
+## Post-Simulation Checklist
 - [ ] All tests pass
-- [ ] Coverage goals met
+- [ ] Coverage goals met (> 90% toggle, > 90% functional)
 - [ ] No unexpected UVM_ERROR/UVM_FATAL
 - [ ] Register access verified
 - [ ] Reset behavior verified
-- [ ] X/Z propagation tested
+- [ ] X/Z propagation tested (no X on data paths)
 - [ ] Protocol violations correctly flagged
+- [ ] Coverage gap analysis complete
+- [ ] Review findings vs coverage gaps cross-referenced
 
-### Tapeout-Ready Checklist
-- [ ] Coverage closure: functional > 95%, toggle > 90%
-- [ ] All tests pass with 10+ random seeds
-- [ ] No X-propagation issues
-- [ ] Formal verification assertions passing
-- [ ] Register model matches final RTL
-- [ ] All protocol timing met
-- [ ] Verification close report generated
+## Coverage Convergence Trigger
+When coverage < 90%:
+  1. Run review skill on RTL → find connectivity bugs
+  2. Fix bugs → re-run simulation → measure improvement
+  3. Target remaining gaps with directed test cases
+  4. Repeat until coverage > 90% or gap analysis complete

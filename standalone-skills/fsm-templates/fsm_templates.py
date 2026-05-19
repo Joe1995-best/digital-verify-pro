@@ -378,14 +378,6 @@ def has_dma_fsm(data):
     return False
 
 
-def has_spi_fsm(data):
-    """Detect if the spec describes an SPI controller needing FSM."""
-    fsm_spec = data.get("fsm", None)
-    if fsm_spec:
-        return fsm_spec.get("type", "") in ("spi", "spi_slave", "spi_master")
-    return False
-
-
 # ═══════════════════════════════════════════════════════════════
 #  Interrupt auto-management register modification
 # ═══════════════════════════════════════════════════════════════
@@ -1031,3 +1023,40 @@ def generate_fsm(data):
         results[f"{fsm_name}.sv"] = fsm_code
 
     return results
+
+
+# =============================================================================
+# FSM Templates — Synthesizable FSM RTL Generator
+#
+# Generates Verilog/SystemVerilog FSM controllers from YAML spec configurations.
+# Supports Moore and Mealy machines with binary, one-hot, or gray encoding.
+#
+# Key features:
+#   - Unified always_ff pattern (next-state + actions + error handling in one block)
+#   - Compatible with iverilog 11, VCS, Questa
+#   - No always_comb reading flip-flop variables
+#   - Error persistence, interrupt auto-set, W1C clearing
+#
+# Design principles:
+#   state_q-based actions (not state_d) — avoids initialization bugs
+#   blocking + NBA separation for correct simulation behavior
+#   Error_flag persistent across cycles until SW clears
+# =============================================================================
+
+
+
+# =============================================================================
+# FSM Templates - Synthesizable FSM RTL Generator from Spec YAML
+#
+# Key design patterns:
+#   1. Unified always_ff block - next-state + actions in one clocked block
+#   2. state_q-based actions - no init bugs vs state_d
+#   3. Blocking + NBA separation for correct simulation
+#   4. Error persistence across cycles (W1C)
+#   5. Interrupt auto-set on done/error
+#
+# Design styles: Moore, Mealy, pipeline
+# Encoding: binary, one-hot, gray
+# Compatible: iverilog 11, VCS, Questa, Verilator
+# =============================================================================
+

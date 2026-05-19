@@ -1,44 +1,45 @@
 # Python
 __pycache__/
-*.py[cod]
-*.egg-info/
-dist/
-build/
-.venv/
-venv/
+*.pyc
+*.pyo
+*.egg
+.env
+.venv
 
-# VSCode
-.vscode/
-.idea/
-
-# pytest
-.pytest_cache/
-
-# Output dirs
-output/
-output_*/
-verify_pro_*/
-quickstart/
-
-# Simulation artifacts
+# Iverilog simulation outputs
+*.o
+*.vvp
 *.vcd
-*.vpd
-*.fsdb
-*.dump
+
+# Generated outputs
+output/
+output_i2c/
+output_ot_dma/
+output_spi/
+output_opt/
+
+# Quality reports (regenerated on demand)
+quality_report.json
+quality_report.md
+
+# System
 *.log
-*.wlf
-*.ucdb
-*.sim
-transcript
-
-# UVM
-work/
-sim/
-
-# OS
+*.swp
 .DS_Store
 Thumbs.db
 
-# Temp
-*.tmp
-*.swp
+# Large binary
+i2c_cov_sim
+spi_slave_sim
+spi_slave.o
+dma_core.vcd
+dma_fix.vcd
+dma_full_test.vcd
+dma_reg_test.vcd
+alu4.vcd
+dual_port_stack.vcd
+dual_port_stack_v2.vcd
+tb_i2c_full.vcd
+i2c.vcd
+i2c_cov.vcd
+spi_slave.vcd

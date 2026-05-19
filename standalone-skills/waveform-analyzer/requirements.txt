@@ -1,0 +1,2 @@
+# No third-party dependencies for base analysis
+# Optional: pyvcd for VCD waveform parsing

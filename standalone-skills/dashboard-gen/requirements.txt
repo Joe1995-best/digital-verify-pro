@@ -1,0 +1,4 @@
+# dashboard-gen v1.0.0
+#
+# No third-party dependencies — pure Python standard library.
+# Tested on Python 3.8+

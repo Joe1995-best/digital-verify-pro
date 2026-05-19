@@ -1,0 +1,2 @@
+# regression-manager v1.0.0
+# Pure Python standard library, no third-party dependencies.

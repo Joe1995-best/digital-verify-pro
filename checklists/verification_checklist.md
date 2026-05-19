@@ -76,6 +76,40 @@ DMA 停机         |      |       |       |      |    |     |     | ✅  |    | 
 - [ ] **所有功能点被测试的 observability 点确认**（assertion / scoreboard / direct check）
 - [ ] **边界/异常功能点有独立测试**（错误注入、保留地址、max-size 传输）
 
+### 2.3 约束随机测试计划
+
+适用于 VRF (Verification Random Framework) 或 UVM 的约束随机验证。
+
+#### 2.3.1 随机变量
+
+| 变量 | 分布 | 约束 | 覆盖目标 |
+|------|:----:|------|:--------:|
+| `data_size` | uniform[1, 256] | <= max_fifo_depth × 2 | 边界值 1, max, max+1 |
+| `transfer_width` | weighted[byte=25%, half=25%, word=50%] | 3-bit encoding | 所有 3 种宽度 |
+| `src_addr_lo` | uniform[0, 2^32-1] | 无 | 翻转换位 |
+| `dst_addr_lo` | uniform[0, 2^32-1] | `!= src_addr` | 地址变化 |
+| `err_inject` | 5% probability | `host_err_i` 脉冲宽度 1 cycle | error 路径全覆盖 |
+| `stop_seq` | 10% mid-transfer | 在 active=1 时触发 | stop_q 功能 |
+
+- [ ] **所有随机变量有约束**: 不产生非法事务（地址越界、长度溢出）
+- [ ] **随机种子可复现**: `+ntb_random_seed=<N>` 指定种子
+- [ ] **种子单调性**: 不同种子不产生死锁或超时
+- [ ] **覆盖率驱动**: 收集到的缺口自动调整随机分布（反馈回路）
+
+#### 2.3.2 随机测试类型
+
+| 测试 | 描述 | 覆盖缺口 |
+|------|------|----------|
+| `random_smoke` | 随机寄存器配置 + 随机 DMA 传输 | 基本功能 |
+| `random_stress` | 1000+ 随机事务，背靠背无间隔 | 深度覆盖 |
+| `random_error` | 随机注入 host_err、pslverr | 错误路径 |
+| `random_width_mix` | 交替 byte/half/word 传输 | 宽度切换 |
+| `random_gap_targeted` | 基于 coverage gaps.json 的靶向随机测试 | 缺口收敛 |
+
+- [ ] **random_smoke 每次回归必跑**: 5 种子
+- [ ] **random_stress 每周回归**: 100 种子
+- [ ] **覆盖率缺口 ≥10% 时触发 random_gap_targeted**
+
 ---
 
 ## Phase 3: RTL Generation Review (RTL-GEN)
@@ -221,3 +255,48 @@ python pipeline/check_feature_coverage.py --spec spec.yml --tests tests/
 # 一键运行收敛流水线
 python run_dma_convergence.py
 ```
+
+
+### 5.4 Review-Checklist 联动
+
+review skill 发现的每个 CRITICAL/HIGH 问题关联到 Checklist Phase:
+
+| Review 规则 | 关联 Phase | 动作 |
+|:-----------|:----------:|------|
+| FIFO_RD_STUCK | Phase 4 (SIM) | 修复后重新仿真 |
+| FIFO_PORT_UNCONNECTED | Phase 3 (RTL-GEN) | 连接端口后重跑 |
+| HW_PORT_ZOMBIE | Phase 3 (RTL-GEN) | 移除僵尸输入 |
+| DUAL_ASSIGN_OVERRIDE | Phase 1 (DSR) + Phase 3 | 合并赋值 |
+| W1C_ON_WIRE | Phase 5 (CCR) | 评估中断覆盖影响 |
+| NO_TOGGLE_GAP | Phase 5 (CCR) | 加入 gap 追踪 |
+
+`ash
+# Review 后自动更新 Checklist
+python tools/review_to_checklist.py \
+  --review output/review_report.json \
+  --checklist checklists/verification_checklist.md \
+  --update
+`
+
+
+---
+
+## Appendix: OpenTitan Alignment
+
+See checklists/opentitan_alignment.md for the full OpenTitan alignment supplement.
+
+### Cross-Reference Table
+
+| Phase | OpenTitan Practice | Doc Ref |
+|:-----|:-------------------|:--------|
+| Phase 1 (DSR) | CSR spec completeness | OT-S1 |
+| Phase 2 (TPR) | Feature-to-test mapping + per-feature coverage | OT-S5 |
+| Phase 2 (TPR) | Fault injection test plan | OT-S6 |
+| Phase 2 (TPR) | DV Plan document | OT-S9 |
+| Phase 3 (RTL-GEN) | UVM RAL single-source consistency | OT-S4 |
+| Phase 3 (RTL-GEN) | Verilator lint | OT-S3 |
+| Phase 4 (SIM) | Multi-seed regression | OT-S2 |
+| Phase 4 (SIM) | CSR auto-test generation | OT-S1 |
+| Phase 5 (CCR) | Code coverage merge across runs | OT-S8 |
+| Phase 5 (CCR) | X-propagation formal analysis | OT-S7 |
+| Phase 6 (SO) | Signed-off release tag | OT-S10 |
