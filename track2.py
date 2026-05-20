@@ -255,6 +255,50 @@ class PipelineRunner:
 
             print(f"  [OK] {phase} completed in {elapsed:.1f}s {eta_str}")
 
+            # ── P0: Lint gate after rtl-gen ──
+            if phase == "rtl-gen" and returncode == 0:
+                try:
+                    from validators import validate_rtl_gen
+                    rtl_dir = os.path.join(self.outdir, "rtl", "rtl")
+                    if os.path.isdir(rtl_dir):
+                        module = os.path.basename(self.spec_path).replace("_spec.yml", "") if self.spec_path else "unknown"
+                        vresult = validate_rtl_gen(rtl_dir, module)
+                        for iss in vresult.get("issues", []):
+                            sev = iss["severity"]
+                            msg = iss.get("message", "")
+                            if isinstance(msg, str):
+                                print(f"    [{sev}] LINT: {msg}")
+                        if not vresult["passed"]:
+                            returncode = 1
+                            print(f"    [X] LINT FAILED: {vresult.get('lint_errors', 0)} errors")
+                except ImportError:
+                    pass
+                except Exception as e:
+                    print(f"    [!] LINT check error: {e}")
+
+            # ── P0: CDC check after rtl-gen ──
+            if phase == "rtl-gen" and returncode == 0:
+                try:
+                    from engines.cdc_checker import CDCChecker
+                    rtl_dir = os.path.join(self.outdir, "rtl", "rtl")
+                    if os.path.isdir(rtl_dir):
+                        rtl_files = [os.path.join(rtl_dir, f) for f in os.listdir(rtl_dir) if f.endswith(".sv")]
+                        if rtl_files:
+                            checker = CDCChecker(rtl_files)
+                            cdc_report = checker.analyze()
+                            for iss in cdc_report.get("issues", []):
+                                print(f"    [CDC] {iss['severity']}: {iss.get('message', '')}")
+                            if cdc_report["total_crossings"] > 0:
+                                for c in cdc_report["crossings"]:
+                                    sync = "SYNCED" if c["synced"] else "UNSYNCED"
+                                    print(f"    [CDC] {c['signal']}: {c['from']} -> {c['to']} [{sync}]")
+                            if cdc_report["status"] != "PASS":
+                                print(f"    [CDC] {cdc_report['unsynchronized']} unsynchronized crossings")
+                except ImportError:
+                    pass
+                except Exception as e:
+                    print(f"    [!] CDC check error: {e}")
+
             self.phase_timings[phase] = elapsed
 
             return {

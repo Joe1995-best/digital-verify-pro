@@ -7,7 +7,7 @@ Each pipeline phase:
 3. Generates a contract JSON for downstream phases
 """
 
-import os, sys, json, yaml, re, glob
+import os, sys, json, yaml, re, glob, shutil, subprocess
 from typing import Dict, List, Optional, Any
 
 BASE_DIR = os.path.dirname(__file__)
@@ -566,3 +566,70 @@ def validate_spec_with_pydantic(spec_path: str) -> dict:
 
     passed = len([i for i in issues if i["severity"] == "ERROR"]) == 0
     return {"passed": passed, "issues": issues}
+
+
+# ── RTL Lint / Synthesizability Gate (P0) ──
+
+def validate_rtl_gen(rtl_dir: str, module_name: str = "unknown") -> dict:
+    """
+    Validate generated RTL with:
+      1. verilator --lint-only (code style + latch detection)
+      2. yosys synth -top (synthesisability check, if available)
+    Returns {passed, issues, lint_warnings, lint_errors, synth_ok}
+    """
+    issues = []
+    rtl_files = sorted(glob.glob(os.path.join(rtl_dir, "*.sv")))
+    if not rtl_files:
+        return {"passed": False,
+                "issues": [{"severity": "ERROR", "message": "No RTL files in " + rtl_dir}]}
+
+    src_list = " ".join(rtl_files)
+    lint_warnings = 0
+    lint_errors = 0
+    synth_ok = False
+
+    # 1. verilator --lint-only
+    verilator = shutil.which("verilator")
+    if verilator:
+        cmd = verilator + " --lint-only -Wall -Wno-UNOPTFLAT " + src_list + " 2>&1"
+        try:
+            r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=60)
+            output = r.stdout + r.stderr
+            lint_warnings = len(re.findall(r'%Warning', output))
+            lint_errors = len(re.findall(r'%Error', output))
+            severity = "WARNING" if lint_warnings > 0 else ("ERROR" if lint_errors > 0 else "PASS")
+            issues.append({"severity": severity, "lint_warns": lint_warnings, "lint_errs": lint_errors,
+                          "message": "verilator: " + str(lint_warnings) + "w/" + str(lint_errors) + "e"})
+            latches = re.findall(r'LATCH|Inferred latch', output, re.IGNORECASE)
+            if latches:
+                issues.append({"severity": "ERROR", "latches": len(latches),
+                              "message": str(len(latches)) + " inferred latches"})
+        except subprocess.TimeoutExpired:
+            issues.append({"severity": "WARNING", "message": "verilator timed out"})
+    else:
+        issues.append({"severity": "INFO", "message": "verilator not found, lint skipped"})
+
+    # 2. yosys synth
+    yosys = shutil.which("yosys")
+    if yosys:
+        ys_path = os.path.join(rtl_dir, "_synth.ys")
+        try:
+            with open(ys_path, "w") as f:
+                f.write("read_verilog " + src_list + "\n")
+                f.write("synth -top " + module_name + "\n")
+                f.write("stat\n")
+            r = subprocess.run([yosys, "-s", ys_path], capture_output=True, text=True, timeout=120)
+            synth_ok = r.returncode == 0
+            issues.append({"severity": "PASS" if synth_ok else "ERROR",
+                          "message": "yosys synth: " + ("PASS" if synth_ok else "FAIL")})
+        except subprocess.TimeoutExpired:
+            issues.append({"severity": "WARNING", "message": "yosys timed out"})
+        finally:
+            if os.path.exists(ys_path):
+                os.remove(ys_path)
+    else:
+        issues.append({"severity": "INFO", "message": "yosys not found, synth skipped"})
+
+    passed = lint_errors == 0 and not any(i["severity"] == "ERROR" for i in issues if "latches" in i)
+    return {"passed": passed, "issues": issues,
+            "lint_warnings": lint_warnings, "lint_errors": lint_errors, "synth_ok": synth_ok}
