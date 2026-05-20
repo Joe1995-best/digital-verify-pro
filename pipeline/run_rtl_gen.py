@@ -156,7 +156,7 @@ def generate_top_module(data):
         "  input  logic       penable",
         "  input  logic       pwrite",
         f"  input  logic [{addr_width-1}:0] paddr",
-        "  input  logic [31:0] pwdata",
+        "  input  reg [31:0] pwdata",
         "  output logic [31:0] prdata",
         "  output logic       pready",
         "  output logic       pslverr",
@@ -172,7 +172,7 @@ def generate_top_module(data):
             "  output logic       host_we_o",
             "  output logic [31:0] host_wdata_o",
             "  input  logic       host_gnt_i",
-            "  input  logic [31:0] host_rdata_i",
+            "  input  reg [31:0] host_rdata_i",
             "  input  logic       host_rvalid_i",
             "  input  logic       host_err_i",
         ])
@@ -209,13 +209,13 @@ module {module} (
         code += "\n  // Register signals (connect regs <-> FSM)\n"
         for r in regs:
             rn = r["name"]
-            code += f"  logic [31:0] {rn}_q;\n"
+            code += f"  reg [31:0] {rn}_q;\n"
 
         code += "\n  // FSM status signals\n"
         code += "  logic        busy_q, active_q;\n"
         code += "  logic        error_flag_q, done_q;\n"
         code += "  logic [3:0]  error_code_q;\n"
-        code += "  logic [31:0] remaining_q;\n"
+        code += "  reg [31:0] remaining_q;\n"
 
         fsm_cfgs = data.get("fsm", {}).get("interrupts", [])
         for ic in fsm_cfgs:
@@ -357,7 +357,7 @@ module {module} (
         code += "  // Register signals (connect regs <-> I2C FSM)\n"
         for r in regs:
             rn = r["name"]
-            code += f"  logic [31:0] {rn}_q;\n"
+            code += f"  reg [31:0] {rn}_q;\n"
 
         # I2C FSM internal signals
         code += """
@@ -653,6 +653,7 @@ def _build_hw_ports(data):
     hw_inputs = []
     hw_outputs = []
     hw_write_cases = {}  # reg_name -> list of (field_name, lsb, width, condition)
+    _seen_ports = set()  # dedup hw_* port names
 
     for fd in fields_detail:
         hwaccess = fd.get("hwaccess", "hrw")
@@ -672,6 +673,9 @@ def _build_hw_ports(data):
             width = 1
         reg_name = fd["reg_name"]
         port_name = f"hw_{fd['field_name'].lower()}"
+        if port_name in _seen_ports:
+            continue
+        _seen_ports.add(port_name)
         width_str = f"[{width-1}:0] " if width > 1 else ""
 
         if hwaccess == "hro":
@@ -812,7 +816,7 @@ def generate_regs_module(data):
                 read_entries.append((off, r_entry))
             continue
         reset_defs.append(f"  localparam {n}_RST = {get_reg_reset(r)};")
-        reg_decls.append(f"  logic [31:0] {n}_q;")
+        reg_decls.append(f"  reg [31:0] {n}_q;")
 
         if not all_ro:
             # Writable — generate write entry
@@ -867,7 +871,7 @@ def generate_regs_module(data):
         "  input  logic       penable",
         "  input  logic       pwrite",
         f"  input  logic [{addr_width-1}:0] paddr",
-        "  input  logic [31:0] pwdata",
+        "  input  reg [31:0] pwdata",
         "  output logic [31:0] prdata",
     ]
 
@@ -879,7 +883,7 @@ def generate_regs_module(data):
             "  input  logic       error_flag_q",
             "  input  logic [3:0] error_code_q",
             "  input  logic       done_q",
-            "  input  logic [31:0] remaining_q",
+            "  input  reg [31:0] remaining_q",
             f"  input  logic       dma_done_intr_q",
             f"  input  logic       dma_chunk_intr_q",
             f"  input  logic       dma_error_intr_q",

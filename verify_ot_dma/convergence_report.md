@@ -7,7 +7,9 @@
 | Toggle Coverage | **93.8%** | CCR: ✅ ≥85% |
 | Full Toggle | 77/91 | |
 | Test Status | 22/22 PASS | SIM: ✅ |
-| RTL-GEN (spec→compile) | ✅ | RTL-GEN: PASS |
+    f"| RTL-GEN (spec.compile) | FAIL | RTL-GEN: FAIL
+C:\Users\Administrator\.openclaw\workspace\digital-verify-pro\output_ot_dma\rtl\rtl\ot_dma.sv:25: error: Port host_rdata_i of module ot_dma is declared as input and as a reg type.
+C:\Users\Administrat |"
 | Checklist Audit | included below | DSR/TPR/CCR |
 
 ---
@@ -76,7 +78,9 @@ Toggle 93.8% — PASS
 
 ## Phase 3: RTL Generation (Spec→RTL)
 
-- Spec: `ot_dma_spec.yml` (✅ compiles)
+- Spec: `ot_dma_spec.yml` (❌ C:\Users\Administrator\.openclaw\workspace\digital-verify-pro\output_ot_dma\rtl\rtl\ot_dma.sv:25: error: Port host_rdata_i of module ot_dma is declared as input and as a reg type.
+C:\Users\Administrator\.openclaw\workspace\digital-verify-pro\output_ot_dma\rtl\rtl\ot_dma.sv:15: error: Port pwdata of module ot_dma is declared as input and as a reg type.
+C:\Users\Administrator\.openclaw\workspace\digital-verify-pro\output_ot_dma\rtl\rtl\ot_dma_regs.sv:13: error: Port pwdata of module ot_dma_regs is)
 - Generated files: `output_ot_dma/rtl/rtl/`
 - FSM controller: `ot_dma_dma_fsm.sv`
 - Register bank: `ot_dma_regs.sv` (20 registers, 48 fields)
@@ -122,6 +126,8 @@ Toggle 93.8% — PASS
 | S3: 覆盖友好设计 | ✅ | error持久, intr auto-set |
 | S4: 寄存器规范 | ✅ | 位宽匹配, PSLVERR |
 | S5: FSM 设计规范 | ✅ | state_q-based actions |
-| S6: 生成 RTL 检查 | ✅ PASS | 编译通过 |
+| S6: 生成 RTL 检查 | ❌ FAIL | C:\Users\Administrator\.openclaw\workspace\digital-verify-pro\output_ot_dma\rtl\rtl\ot_dma.sv:25: error: Port host_rdata_i of module ot_dma is declared as input and as a reg type.
+C:\Users\Administrator\.openclaw\workspace\digital-verify-pro\output_ot_dma\rtl\rtl\ot_dma.sv:15: error: Port pwdata of module ot_dma is declared as input and as a reg type.
+C:\Users\Administrator\.openclaw\workspace\digital-verify-pro\output_ot_dma\rtl\rtl\ot_dma_regs.sv:13: error: Port pwdata of module ot_dma_regs is |
 
 Generated: 2026-05-14 by convergence pipeline

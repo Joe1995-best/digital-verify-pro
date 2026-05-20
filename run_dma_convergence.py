@@ -130,7 +130,7 @@ def generate_report(result, stats, test_results, rtl_gen_ok, rtl_gen_errors, che
 | Toggle Coverage | **{result.toggle_coverage_pct:.1f}%** | CCR: {ccr_pass} |
 | Full Toggle | {result.full_toggle_signals}/{result.total_signals} | |
 | Test Status | {test_results['pass']}/{test_results['pass']+test_results['fail']} PASS | SIM: ✅ |
-| RTL-GEN (spec→compile) | {'✅' if rtl_gen_ok else '❌' + rtl_gen_errors} | RTL-GEN: {'PASS' if rtl_gen_ok else 'FAIL'} |
+    f"| RTL-GEN (spec.compile) | {'PASS' if rtl_gen_ok else 'FAIL'} | RTL-GEN: {'PASS' if rtl_gen_ok else 'FAIL' + (chr(10) + rtl_gen_errors[:200] if rtl_gen_errors else '')} |"
 | Checklist Audit | included below | DSR/TPR/CCR |
 
 ---
