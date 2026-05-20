@@ -1,53 +1,83 @@
 #!/usr/bin/env python3
-# EDA tools: iverilog, vcs, questa, xcelium, verilator
-import atexit, tempfile
+"""feature-decomposer — Feature-driven testpoint decomposition"""
+import sys, argparse, json
+from pathlib import Path
+from datetime import datetime, timezone
 
-"""run.py — part of digital-verify-pro."""
-"""feature-decomposer — Feature decomposition from spec YAML."""
-import sys, os, argparse
+# skill_common provides shared logger, exit codes, result writer, validators
+import skill_common
+from skill_common import get_logger, ExitCode, write_result, load_config, validate_inputs, validate_outputs
 
-_d = os.path.dirname(os.path.abspath(__file__))
-if _d not in sys.path:
-    sys.path.insert(0, _d)
+logger = get_logger("feature-decomposer")
 
-# ── main ──
 
-def _validate_inputs(args):
-    """Basic input validation according to skill_common standards."""
-    import os
-    if hasattr(args, 'spec') and args.spec:
-        if not os.path.isfile(args.spec):
-            raise FileNotFoundError(f"Spec file not found: {args.spec}")
-    if hasattr(args, 'out') and args.out:
-        os.makedirs(args.out, exist_ok=True)
-    return True
+def parse_args(argv=None):
+    """Parse CLI arguments matching skill_spec.json interface.signature"""
+    ap = argparse.ArgumentParser(description="Feature-driven testpoint decomposition")
+    ap.add_argument("--spec", type=Path, help="YAML spec for context")
+    ap.add_argument("--out", type=Path, default=Path("output/"), help="Output directory")
+    ap.add_argument("--log-level", default="info", choices=["debug", "info", "warn", "error"],
+                    help="Log level")
+    ap.add_argument("--result", type=Path, default=None, help="result.json path override")
+    
+    return ap.parse_args(argv)
 
-def main():
+
+def main(argv=None) -> int:
+    args = parse_args(argv)
+    logger.setLevel(args.log_level.upper())
+    
+    # 1. Load config
+    config = load_config("config.yaml")
+    
+    # 2. Input validation
+    errors = validate_inputs(args, required_args=[], schema_path=str(Path(__file__).parent / "schemas" / "input.schema.json"))
+    if errors:
+        for err in errors:
+            logger.error(err["message"])
+        write_result(status="fail", module="feature-decomposer", errors=errors,
+                     outputs={}, path=str(args.result or "result.json"))
+        return ExitCode.INPUT_ERROR
+    
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 3. Execute core logic
     try:
-        _validate_inputs(args)
+                from feature_decomposer import main as fd_main
+        fd_main()
+        result = {"status": "pass", "summary": ""Decomposition complete""}
     except Exception as e:
-        print(f"Input validation error: {e}")
-        sys.exit(1)
-
-    """CLI entry point for feature decomposition."""
-    parser = argparse.ArgumentParser(
-        description="Decompose spec YAML into functional features"
+        logger.exception("Runtime error")
+        write_result(status="error", module="feature-decomposer",
+                     errors=[{"code": 3, "message": str(e)}],
+                     outputs={}, path=str(args.result or out_dir / "result.json"))
+        return ExitCode.RUNTIME_ERROR
+    
+    # 4. Write outputs
+    result_path = out_dir / "result.json"
+    if args.result:
+        result_path = Path(args.result)
+    
+    write_result(
+        status=result.get("status", "pass"),
+        module=args.spec.stem if args.spec and args.spec.exists() else "feature-decomposer",
+        summary=result.get("summary", ""),
+        metrics=result.get("metrics", {}),
+        outputs=result.get("outputs", {}),
+        errors=result.get("errors", []),
+        warnings=result.get("warnings", []),
+        path=str(result_path)
     )
-    parser.add_argument("--spec", help="Path to spec YAML file")
-    parser.add_argument("--out", default="output", help="Output directory")
-    args = parser.parse_args()
-    print(f"feature-decomposer: spec={args.spec}, out={args.out}")
-    # step
-    return 0
+    
+    # 5. Output schema validation
+    out_errors = validate_outputs(str(out_dir), schema_dir=str(Path(__file__).parent / "schemas"))
+    for err in out_errors:
+        logger.warning(err["message"])
+    
+    logger.info(result.get("summary", "Done"))
+    return ExitCode.SUCCESS
 
-# Cleanup temp files on exit
-atexit.register(lambda: None)  # placeholder
 
 if __name__ == "__main__":
-    try:
-        sys.exit(main())
-    except Exception as e:
-        import traceback
-        print(f"ERROR: {e}")
-        traceback.print_exc()
-        sys.exit(1)
+    sys.exit(main())

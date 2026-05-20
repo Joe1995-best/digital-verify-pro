@@ -1,48 +1,83 @@
 #!/usr/bin/env python3
-# EDA tools: iverilog, vcs, questa, xcelium, verilator
-import atexit, tempfile
+"""fsm-templates — FSM controller RTL template generator"""
+import sys, argparse, json
+from pathlib import Path
+from datetime import datetime, timezone
 
-"""run.py — part of digital-verify-pro."""
-"""fsm-templates — FSM controller RTL generator from spec YAML."""
-import sys, os, argparse
+# skill_common provides shared logger, exit codes, result writer, validators
+import skill_common
+from skill_common import get_logger, ExitCode, write_result, load_config, validate_inputs, validate_outputs
 
-_d = os.path.dirname(os.path.abspath(__file__))
-if _d not in sys.path:
-    sys.path.insert(0, _d)
+logger = get_logger("fsm-templates")
 
-# ── main ──
 
-def _validate_inputs(args):
-    """Basic input validation according to skill_common standards."""
-    import os
-    if hasattr(args, 'spec') and args.spec:
-        if not os.path.isfile(args.spec):
-            raise FileNotFoundError(f"Spec file not found: {args.spec}")
-    if hasattr(args, 'out') and args.out:
-        os.makedirs(args.out, exist_ok=True)
-    return True
+def parse_args(argv=None):
+    """Parse CLI arguments matching skill_spec.json interface.signature"""
+    ap = argparse.ArgumentParser(description="FSM controller RTL template generator")
+    ap.add_argument("--spec", type=Path, help="YAML spec for context")
+    ap.add_argument("--out", type=Path, default=Path("output/"), help="Output directory")
+    ap.add_argument("--log-level", default="info", choices=["debug", "info", "warn", "error"],
+                    help="Log level")
+    ap.add_argument("--result", type=Path, default=None, help="result.json path override")
+    
+    return ap.parse_args(argv)
 
-def main():
+
+def main(argv=None) -> int:
+    args = parse_args(argv)
+    logger.setLevel(args.log_level.upper())
+    
+    # 1. Load config
+    config = load_config("config.yaml")
+    
+    # 2. Input validation
+    errors = validate_inputs(args, required_args=[], schema_path=str(Path(__file__).parent / "schemas" / "input.schema.json"))
+    if errors:
+        for err in errors:
+            logger.error(err["message"])
+        write_result(status="fail", module="fsm-templates", errors=errors,
+                     outputs={}, path=str(args.result or "result.json"))
+        return ExitCode.INPUT_ERROR
+    
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 3. Execute core logic
     try:
-        _validate_inputs(args)
+                from fsm_templates import main as fsm_main
+        fsm_main()
+        result = {"status": "pass", "summary": ""FSM template generated""}
     except Exception as e:
-        print(f"Input validation error: {e}")
-        sys.exit(1)
-
-    """CLI entry point for FSM template generation."""
-    parser = argparse.ArgumentParser(
-        description="Generate synthesizable FSM RTL from spec YAML"
+        logger.exception("Runtime error")
+        write_result(status="error", module="fsm-templates",
+                     errors=[{"code": 3, "message": str(e)}],
+                     outputs={}, path=str(args.result or out_dir / "result.json"))
+        return ExitCode.RUNTIME_ERROR
+    
+    # 4. Write outputs
+    result_path = out_dir / "result.json"
+    if args.result:
+        result_path = Path(args.result)
+    
+    write_result(
+        status=result.get("status", "pass"),
+        module=args.spec.stem if args.spec and args.spec.exists() else "fsm-templates",
+        summary=result.get("summary", ""),
+        metrics=result.get("metrics", {}),
+        outputs=result.get("outputs", {}),
+        errors=result.get("errors", []),
+        warnings=result.get("warnings", []),
+        path=str(result_path)
     )
-    parser.add_argument("--spec", help="Path to spec YAML file")
-    parser.add_argument("--out", default="output", help="Output directory")
-    parser.add_argument("--type", default="dma",
-                      choices=["dma", "simple"],
-                      help="FSM template type")
-    args = parser.parse_args()
-    # FSM template generation logic
-    print(f"fsm-templates: type={args.type}, spec={args.spec}")
-    return 0
-# ---
+    
+    # 5. Output schema validation
+    out_errors = validate_outputs(str(out_dir), schema_dir=str(Path(__file__).parent / "schemas"))
+    for err in out_errors:
+        logger.warning(err["message"])
+    
+    logger.info(result.get("summary", "Done"))
+    return ExitCode.SUCCESS
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

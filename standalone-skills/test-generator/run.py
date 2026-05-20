@@ -1,39 +1,83 @@
 #!/usr/bin/env python3
-# EDA tools: iverilog, vcs, questa, xcelium, verilator
+"""test-generator — Generate UVM test sequences"""
+import sys, argparse, json
+from pathlib import Path
+from datetime import datetime, timezone
 
-"""run.py — part of digital-verify-pro."""
-"""
-test-generator — UVM test sequence generation.
+# skill_common provides shared logger, exit codes, result writer, validators
+import skill_common
+from skill_common import get_logger, ExitCode, write_result, load_config, validate_inputs, validate_outputs
 
-# python_requires = >= 3.10
-Usage:
-    python run.py --spec <spec.yml> [--out output_dir] [--gaps gaps.json]
-"""
-import atexit, tempfile  # cleanup
-import sys
-import os
+logger = get_logger("test-generator")
 
-_this_dir = os.path.dirname(os.path.abspath(__file__))
-_lib_dir = os.path.join(_this_dir, "lib")
-if _lib_dir not in sys.path:
-    sys.path.insert(0, _lib_dir)
-if _this_dir not in sys.path:
-    sys.path.insert(0, _this_dir)
 
-import importlib.util
-# step
+def parse_args(argv=None):
+    """Parse CLI arguments matching skill_spec.json interface.signature"""
+    ap = argparse.ArgumentParser(description="Generate UVM test sequences")
+    ap.add_argument("--spec", type=Path, help="YAML spec for context")
+    ap.add_argument("--out", type=Path, default=Path("output/"), help="Output directory")
+    ap.add_argument("--log-level", default="info", choices=["debug", "info", "warn", "error"],
+                    help="Log level")
+    ap.add_argument("--result", type=Path, default=None, help="result.json path override")
+        ap.add_argument("--gaps", type=Path, help="Coverage gaps JSON")
+    return ap.parse_args(argv)
 
-# ── _monkey_patch ──
-def _monkey_patch(name, path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules[name] = mod
-    # ---
-    spec.loader.exec_module(mod)
 
-for fname in ["template_engine.py", "validators.py"]:
-    fpath = os.path.join(_lib_dir, fname)
-    if os.path.exists(fpath):
-        _monkey_patch(fname.replace(".py", ""), fpath)
+def main(argv=None) -> int:
+    args = parse_args(argv)
+    logger.setLevel(args.log_level.upper())
+    
+    # 1. Load config
+    config = load_config("config.yaml")
+    
+    # 2. Input validation
+    errors = validate_inputs(args, required_args=[], schema_path=str(Path(__file__).parent / "schemas" / "input.schema.json"))
+    if errors:
+        for err in errors:
+            logger.error(err["message"])
+        write_result(status="fail", module="test-generator", errors=errors,
+                     outputs={}, path=str(args.result or "result.json"))
+        return ExitCode.INPUT_ERROR
+    
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 3. Execute core logic
+    try:
+                from run_test_generator import main as tg_main
+        tg_main()
+        result = {"status": "pass", "summary": ""Test sequences generated""}
+    except Exception as e:
+        logger.exception("Runtime error")
+        write_result(status="error", module="test-generator",
+                     errors=[{"code": 3, "message": str(e)}],
+                     outputs={}, path=str(args.result or out_dir / "result.json"))
+        return ExitCode.RUNTIME_ERROR
+    
+    # 4. Write outputs
+    result_path = out_dir / "result.json"
+    if args.result:
+        result_path = Path(args.result)
+    
+    write_result(
+        status=result.get("status", "pass"),
+        module=args.spec.stem if args.spec and args.spec.exists() else "test-generator",
+        summary=result.get("summary", ""),
+        metrics=result.get("metrics", {}),
+        outputs=result.get("outputs", {}),
+        errors=result.get("errors", []),
+        warnings=result.get("warnings", []),
+        path=str(result_path)
+    )
+    
+    # 5. Output schema validation
+    out_errors = validate_outputs(str(out_dir), schema_dir=str(Path(__file__).parent / "schemas"))
+    for err in out_errors:
+        logger.warning(err["message"])
+    
+    logger.info(result.get("summary", "Done"))
+    return ExitCode.SUCCESS
 
-import run_test_generator
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,50 +1,83 @@
 #!/usr/bin/env python3
-# EDA tools: iverilog, vcs, questa, xcelium
+"""sim-runner — Run simulation and collect results"""
+import sys, argparse, json
+from pathlib import Path
+from datetime import datetime, timezone
 
-"""run.py — part of digital-verify-pro."""
-"""
-sim-runner — Simulation execution and result collection.
+# skill_common provides shared logger, exit codes, result writer, validators
+import skill_common
+from skill_common import get_logger, ExitCode, write_result, load_config, validate_inputs, validate_outputs
 
-Runs pre-compiled simv with test sequences, collects pass/fail results.
-Does NOT compile — use tb-compiler for compilation.
-
-Usage:
-    python run.py --spec <spec.yml> [--out output_dir] [--test <name>]
-    python run.py --spec <spec.yml> --all
-"""
-import atexit, tempfile  # cleanup
-import sys, os
-
-_this_dir = os.path.dirname(os.path.abspath(__file__))
-_lib_dir = os.path.join(_this_dir, "lib")
-if _lib_dir not in sys.path:
-    sys.path.insert(0, _lib_dir)
-if _this_dir not in sys.path:
-    sys.path.insert(0, _this_dir)
-
-import importlib.util
-
-def _monkey_patch(name, path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules[name] = mod
-    spec.loader.exec_module(mod)
-
-for fname in ["template_engine.py", "questa_vcs_support.py"]:
-    fpath = os.path.join(_lib_dir, fname)
-    if os.path.exists(fpath):
-        _monkey_patch(fname.replace(".py", ""), fpath)
-
-from run_sim import main
+logger = get_logger("sim-runner")
 
 
-# =============================================================================
-# sim-runner — SIMULATION EXECUTION ONLY
-#
-# Runs compiled simv with test sequences, collects results, produces VCD.
-# Supported tools: iverilog, VCS, Questa, Xcelium
-# Dependencies: Python >= 3.10, lib/template_engine, lib/questa_vcs_support
-#
-# Depends on: tb-compiler (provides compiled simv)
-# Downstream: waveform-analyzer, coverage-engine, doc-gen
-# =============================================================================
+def parse_args(argv=None):
+    """Parse CLI arguments matching skill_spec.json interface.signature"""
+    ap = argparse.ArgumentParser(description="Run simulation and collect results")
+    ap.add_argument("--spec", type=Path, help="YAML spec for context")
+    ap.add_argument("--out", type=Path, default=Path("output/"), help="Output directory")
+    ap.add_argument("--log-level", default="info", choices=["debug", "info", "warn", "error"],
+                    help="Log level")
+    ap.add_argument("--result", type=Path, default=None, help="result.json path override")
+    
+    return ap.parse_args(argv)
+
+
+def main(argv=None) -> int:
+    args = parse_args(argv)
+    logger.setLevel(args.log_level.upper())
+    
+    # 1. Load config
+    config = load_config("config.yaml")
+    
+    # 2. Input validation
+    errors = validate_inputs(args, required_args=[], schema_path=str(Path(__file__).parent / "schemas" / "input.schema.json"))
+    if errors:
+        for err in errors:
+            logger.error(err["message"])
+        write_result(status="fail", module="sim-runner", errors=errors,
+                     outputs={}, path=str(args.result or "result.json"))
+        return ExitCode.INPUT_ERROR
+    
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 3. Execute core logic
+    try:
+                from run_sim import main as sim_main
+        sim_main()
+        result = {"status": "pass", "summary": ""Simulation complete""}
+    except Exception as e:
+        logger.exception("Runtime error")
+        write_result(status="error", module="sim-runner",
+                     errors=[{"code": 3, "message": str(e)}],
+                     outputs={}, path=str(args.result or out_dir / "result.json"))
+        return ExitCode.RUNTIME_ERROR
+    
+    # 4. Write outputs
+    result_path = out_dir / "result.json"
+    if args.result:
+        result_path = Path(args.result)
+    
+    write_result(
+        status=result.get("status", "pass"),
+        module=args.spec.stem if args.spec and args.spec.exists() else "sim-runner",
+        summary=result.get("summary", ""),
+        metrics=result.get("metrics", {}),
+        outputs=result.get("outputs", {}),
+        errors=result.get("errors", []),
+        warnings=result.get("warnings", []),
+        path=str(result_path)
+    )
+    
+    # 5. Output schema validation
+    out_errors = validate_outputs(str(out_dir), schema_dir=str(Path(__file__).parent / "schemas"))
+    for err in out_errors:
+        logger.warning(err["message"])
+    
+    logger.info(result.get("summary", "Done"))
+    return ExitCode.SUCCESS
+
+
+if __name__ == "__main__":
+    sys.exit(main())

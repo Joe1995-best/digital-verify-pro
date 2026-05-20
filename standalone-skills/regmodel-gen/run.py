@@ -1,45 +1,83 @@
 #!/usr/bin/env python3
-# EDA tools: iverilog, vcs, questa, xcelium
+"""regmodel-gen — Generate UVM RAL model"""
+import sys, argparse, json
+from pathlib import Path
+from datetime import datetime, timezone
 
-"""run.py — part of digital-verify-pro."""
-"""
-regmodel-gen — UVM Register Abstraction Layer (RAL) model generation.
+# skill_common provides shared logger, exit codes, result writer, validators
+import skill_common
+from skill_common import get_logger, ExitCode, write_result, load_config, validate_inputs, validate_outputs
 
-# python_requires = >= 3.10
-Usage:
-    python run.py --spec <spec.yml> [--out output_dir]
-"""
-import atexit, tempfile  # cleanup
-import sys
-import os
-
-_this_dir = os.path.dirname(os.path.abspath(__file__))
-_lib_dir = os.path.join(_this_dir, "lib")
-if _lib_dir not in sys.path:
-    sys.path.insert(0, _lib_dir)
-if _this_dir not in sys.path:
-    sys.path.insert(0, _this_dir)
-
-import importlib.util
-
-spec = importlib.util.spec_from_file_location(
-    "template_engine", os.path.join(_lib_dir, "template_engine.py")
-)
-mod = importlib.util.module_from_spec(spec)
-sys.modules["template_engine"] = mod
-spec.loader.exec_module(mod)
-
-import run_ral_gen
+logger = get_logger("regmodel-gen")
 
 
-# =============================================================================
-# regmodel-gen — UVM register model generator
-#
-# Generates UVM register model (reg_block, reg classes, register package)
-# from register map YAML. Supports all UVM access policies: RW, RO, WO, W1C, RW1C.
-#
-# Key functions:
-#   main() - CLI entry point
-#
-# Dependencies: pyyaml (for YAML parsing), Python >= 3.10
-# =============================================================================
+def parse_args(argv=None):
+    """Parse CLI arguments matching skill_spec.json interface.signature"""
+    ap = argparse.ArgumentParser(description="Generate UVM RAL model")
+    ap.add_argument("--spec", type=Path, help="YAML spec for context")
+    ap.add_argument("--out", type=Path, default=Path("output/"), help="Output directory")
+    ap.add_argument("--log-level", default="info", choices=["debug", "info", "warn", "error"],
+                    help="Log level")
+    ap.add_argument("--result", type=Path, default=None, help="result.json path override")
+    
+    return ap.parse_args(argv)
+
+
+def main(argv=None) -> int:
+    args = parse_args(argv)
+    logger.setLevel(args.log_level.upper())
+    
+    # 1. Load config
+    config = load_config("config.yaml")
+    
+    # 2. Input validation
+    errors = validate_inputs(args, required_args=[], schema_path=str(Path(__file__).parent / "schemas" / "input.schema.json"))
+    if errors:
+        for err in errors:
+            logger.error(err["message"])
+        write_result(status="fail", module="regmodel-gen", errors=errors,
+                     outputs={}, path=str(args.result or "result.json"))
+        return ExitCode.INPUT_ERROR
+    
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 3. Execute core logic
+    try:
+                from run_ral_gen import main as ral_main
+        ral_main()
+        result = {"status": "pass", "summary": ""RAL model generated""}
+    except Exception as e:
+        logger.exception("Runtime error")
+        write_result(status="error", module="regmodel-gen",
+                     errors=[{"code": 3, "message": str(e)}],
+                     outputs={}, path=str(args.result or out_dir / "result.json"))
+        return ExitCode.RUNTIME_ERROR
+    
+    # 4. Write outputs
+    result_path = out_dir / "result.json"
+    if args.result:
+        result_path = Path(args.result)
+    
+    write_result(
+        status=result.get("status", "pass"),
+        module=args.spec.stem if args.spec and args.spec.exists() else "regmodel-gen",
+        summary=result.get("summary", ""),
+        metrics=result.get("metrics", {}),
+        outputs=result.get("outputs", {}),
+        errors=result.get("errors", []),
+        warnings=result.get("warnings", []),
+        path=str(result_path)
+    )
+    
+    # 5. Output schema validation
+    out_errors = validate_outputs(str(out_dir), schema_dir=str(Path(__file__).parent / "schemas"))
+    for err in out_errors:
+        logger.warning(err["message"])
+    
+    logger.info(result.get("summary", "Done"))
+    return ExitCode.SUCCESS
+
+
+if __name__ == "__main__":
+    sys.exit(main())

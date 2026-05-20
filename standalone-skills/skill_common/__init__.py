@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-Copyright (c) 2026 digital-verify-pro. MIT License.
 """
 skill_common — Shared utilities for digital-verify-pro standalone skills.
 

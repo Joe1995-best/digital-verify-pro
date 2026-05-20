@@ -1,58 +1,84 @@
 #!/usr/bin/env python3
-# EDA tools: iverilog, vcs, questa, xcelium, verilator
-import atexit, tempfile
+"""dashboard-gen — Interactive HTML dashboard from verification results"""
+import sys, argparse, json
+from pathlib import Path
+from datetime import datetime, timezone
 
-"""run.py — part of digital-verify-pro."""
-"""
-dashboard-gen — Verification HTML Dashboard Generator.
+# skill_common provides shared logger, exit codes, result writer, validators
+import skill_common
+from skill_common import get_logger, ExitCode, write_result, load_config, validate_inputs, validate_outputs
 
-Usage:
-    python run.py --module TOP --output dashboard.html [--total N] [--passed N]
-"""
-import sys
-import os
-_this_dir = os.path.dirname(os.path.abspath(__file__))
-if _this_dir not in sys.path:
-    sys.path.insert(0, _this_dir)
-from dashboard_gen import main
-# Cleanup temp files on exit
-atexit.register(lambda: None)  # placeholder
+logger = get_logger("dashboard-gen")
+
+
+def parse_args(argv=None):
+    """Parse CLI arguments matching skill_spec.json interface.signature"""
+    ap = argparse.ArgumentParser(description="Interactive HTML dashboard from verification results")
+    ap.add_argument("--spec", type=Path, help="YAML spec for context")
+    ap.add_argument("--out", type=Path, default=Path("output/"), help="Output directory")
+    ap.add_argument("--log-level", default="info", choices=["debug", "info", "warn", "error"],
+                    help="Log level")
+    ap.add_argument("--result", type=Path, default=None, help="result.json path override")
+        ap.add_argument("--module", type=str, required=True, help="DUT module name")
+    ap.add_argument("--output", type=Path, required=True, help="Output HTML file")
+    return ap.parse_args(argv)
+
+
+def main(argv=None) -> int:
+    args = parse_args(argv)
+    logger.setLevel(args.log_level.upper())
+    
+    # 1. Load config
+    config = load_config("config.yaml")
+    
+    # 2. Input validation
+    errors = validate_inputs(args, required_args=[], schema_path=str(Path(__file__).parent / "schemas" / "input.schema.json"))
+    if errors:
+        for err in errors:
+            logger.error(err["message"])
+        write_result(status="fail", module="dashboard-gen", errors=errors,
+                     outputs={}, path=str(args.result or "result.json"))
+        return ExitCode.INPUT_ERROR
+    
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 3. Execute core logic
+    try:
+                from dashboard_gen import main as dash_main
+        dash_main()
+        result = {"status": "pass", "summary": ""Dashboard generated""}
+    except Exception as e:
+        logger.exception("Runtime error")
+        write_result(status="error", module="dashboard-gen",
+                     errors=[{"code": 3, "message": str(e)}],
+                     outputs={}, path=str(args.result or out_dir / "result.json"))
+        return ExitCode.RUNTIME_ERROR
+    
+    # 4. Write outputs
+    result_path = out_dir / "result.json"
+    if args.result:
+        result_path = Path(args.result)
+    
+    write_result(
+        status=result.get("status", "pass"),
+        module=args.spec.stem if args.spec and args.spec.exists() else "dashboard-gen",
+        summary=result.get("summary", ""),
+        metrics=result.get("metrics", {}),
+        outputs=result.get("outputs", {}),
+        errors=result.get("errors", []),
+        warnings=result.get("warnings", []),
+        path=str(result_path)
+    )
+    
+    # 5. Output schema validation
+    out_errors = validate_outputs(str(out_dir), schema_dir=str(Path(__file__).parent / "schemas"))
+    for err in out_errors:
+        logger.warning(err["message"])
+    
+    logger.info(result.get("summary", "Done"))
+    return ExitCode.SUCCESS
+
 
 if __name__ == "__main__":
     sys.exit(main())
-
-
-# =============================================================================
-# dashboard-gen — Verification HTML Dashboard Generator
-#
-# Creates interactive HTML dashboards with Chart.js:
-#   - Coverage gauges (toggle, FSM, functional)
-#   - Sortable test results table
-#   - Regression trend charts
-#   - FSM transition heatmap
-#   - Coverage heatmap by module
-#
-# Dependencies: Python >= 3.10 (Chart.js loaded from CDN at runtime)
-# =============================================================================
-
-
-# Cleanup temp files on exit
-atexit.register(lambda: None)  # placeholder
-
-if __name__ == "__main__":
-    try:
-        import traceback
-    except:
-        pass
-
-# Cleanup temp files on exit
-atexit.register(lambda: None)  # placeholder
-
-if __name__ == "__main__":
-    try:
-        sys.exit(main())
-    except Exception as e:
-        import traceback
-        print(f"ERROR: {e}")
-        traceback.print_exc()
-        sys.exit(1)

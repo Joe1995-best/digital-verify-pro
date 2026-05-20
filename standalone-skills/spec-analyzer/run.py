@@ -1,54 +1,83 @@
 #!/usr/bin/env python3
-# EDA tools: iverilog, vcs, questa, xcelium, verilator
-import atexit, tempfile
-# python_requires = >= 3.10
+"""spec-analyzer — Parse spec YAML into verification plan"""
+import sys, argparse, json
+from pathlib import Path
+from datetime import datetime, timezone
 
-"""run.py — part of digital-verify-pro."""
-"""
-spec-analyzer — Parse spec YAML into verification plan, interface list,
-register map, and test scenarios. Entry point for the IC verification pipeline.
+# skill_common provides shared logger, exit codes, result writer, validators
+import skill_common
+from skill_common import get_logger, ExitCode, write_result, load_config, validate_inputs, validate_outputs
 
-Usage:
-    python run.py spec.yml --out output_dir
-"""
-import sys
-import os
+logger = get_logger("spec-analyzer")
 
-# Set up lib/ path for internal dependencies (template_engine, validators)
-_this_dir = os.path.dirname(os.path.abspath(__file__))
-_lib_dir = os.path.join(_this_dir, "lib")
-if _lib_dir not in sys.path:
-    sys.path.insert(0, _lib_dir)
-if _this_dir not in sys.path:
-# step
-    sys.path.insert(0, _this_dir)
 
-# Also add pipeline directory if template_engine/validators import from it
-# (some scripts reference pipeline. prefix)
-_par_dir = os.path.dirname(os.path.dirname(_this_dir))  # project root
-_pipeline_dir = os.path.join(_par_dir, "pipeline")
-if os.path.exists(_pipeline_dir) and _pipeline_dir not in sys.path:
-    sys.path.insert(0, _pipeline_dir)
+def parse_args(argv=None):
+    """Parse CLI arguments matching skill_spec.json interface.signature"""
+    ap = argparse.ArgumentParser(description="Parse spec YAML into verification plan")
+    ap.add_argument("--spec", type=Path, help="YAML spec for context")
+    ap.add_argument("--out", type=Path, default=Path("output/"), help="Output directory")
+    ap.add_argument("--log-level", default="info", choices=["debug", "info", "warn", "error"],
+                    help="Log level")
+    ap.add_argument("--result", type=Path, default=None, help="result.json path override")
+    
+    return ap.parse_args(argv)
 
-# Monkey-patch: if any module tries 'import template_engine', redirect to lib
-import importlib.util
-_spec = importlib.util.spec_from_file_location(
-    "template_engine", os.path.join(_lib_dir, "template_engine.py")
-)
-_spec2 = importlib.util.spec_from_file_location(
-    "validators", os.path.join(_lib_dir, "validators.py")
-)
-_template_engine = importlib.util.module_from_spec(_spec)
-_validators = importlib.util.module_from_spec(_spec2)
-sys.modules["template_engine"] = _template_engine
-sys.modules["validators"] = _validators
-_spec.loader.exec_module(_template_engine)
-_spec2.loader.exec_module(_validators)
 
-from run_spec_analyzer import main
+def main(argv=None) -> int:
+    args = parse_args(argv)
+    logger.setLevel(args.log_level.upper())
+    
+    # 1. Load config
+    config = load_config("config.yaml")
+    
+    # 2. Input validation
+    errors = validate_inputs(args, required_args=[], schema_path=str(Path(__file__).parent / "schemas" / "input.schema.json"))
+    if errors:
+        for err in errors:
+            logger.error(err["message"])
+        write_result(status="fail", module="spec-analyzer", errors=errors,
+                     outputs={}, path=str(args.result or "result.json"))
+        return ExitCode.INPUT_ERROR
+    
+    out_dir = Path(args.out)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 3. Execute core logic
+    try:
+                from run_spec_analyzer import main as spec_main
+        spec_main()
+        result = {"status": "pass", "summary": ""Spec analysis complete""}
+    except Exception as e:
+        logger.exception("Runtime error")
+        write_result(status="error", module="spec-analyzer",
+                     errors=[{"code": 3, "message": str(e)}],
+                     outputs={}, path=str(args.result or out_dir / "result.json"))
+        return ExitCode.RUNTIME_ERROR
+    
+    # 4. Write outputs
+    result_path = out_dir / "result.json"
+    if args.result:
+        result_path = Path(args.result)
+    
+    write_result(
+        status=result.get("status", "pass"),
+        module=args.spec.stem if args.spec and args.spec.exists() else "spec-analyzer",
+        summary=result.get("summary", ""),
+        metrics=result.get("metrics", {}),
+        outputs=result.get("outputs", {}),
+        errors=result.get("errors", []),
+        warnings=result.get("warnings", []),
+        path=str(result_path)
+    )
+    
+    # 5. Output schema validation
+    out_errors = validate_outputs(str(out_dir), schema_dir=str(Path(__file__).parent / "schemas"))
+    for err in out_errors:
+        logger.warning(err["message"])
+    
+    logger.info(result.get("summary", "Done"))
+    return ExitCode.SUCCESS
 
-# Cleanup temp files on exit
-atexit.register(lambda: None)  # placeholder
 
 if __name__ == "__main__":
     sys.exit(main())
