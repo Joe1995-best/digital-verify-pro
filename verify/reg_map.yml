@@ -1,0 +1,46 @@
+# 寄存器映射表 — spec-analyzer 产出
+# env-builder (RAL)、rtl-gen (RTL regbank)、regmodel-gen 共用
+
+module: i2c_controller
+base_address: 0x4000_0000
+
+registers:
+  - name: ctrl
+    offset: 0x00
+    size: 32
+    description: "控制寄存器"
+    fields:
+      - {name: enable,    bit: 0,   access: rw,  reset: 1, description: "I2C 使能"}
+      - {name: speed_sel, bits: [2:1], access: rw, reset: 0, description: "00=std 01=fast 10=fast+"}
+      - {name: reserved,  bits: [31:3], access: ro, reset: 0}
+
+  - name: status
+    offset: 0x04
+    size: 32
+    description: "状态寄存器"
+    fields:
+      - {name: busy, bit: 0, access: ro,  reset: 0, description: "I2C 忙"}
+      - {name: done, bit: 1, access: ro,  reset: 0, description: "传输完成"}
+      - {name: err,  bit: 2, access: w1c, reset: 0, description: "错误标志，写 1 清 0"}
+
+  - name: tx_data
+    offset: 0x08
+    size: 32
+    description: "发送数据"
+    fields:
+      - {name: data, bits: [31:0], access: wo, reset: x, description: "待发送数据"}
+
+  - name: rx_data
+    offset: 0x0C
+    size: 32
+    description: "接收数据"
+    fields:
+      - {name: data, bits: [31:0], access: ro, reset: 0, description: "已接收数据"}
+
+  - name: clk_div
+    offset: 0x10
+    size: 32
+    description: "时钟分频"
+    fields:
+      - {name: divisor,  bits: [15:0],  access: rw, reset: 0x0064, description: "时钟分频系数"}
+      - {name: reserved, bits: [31:16], access: ro, reset: 0}

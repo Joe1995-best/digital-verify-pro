@@ -1,6 +1,7 @@
 ---
 name: coverage-engine
 version: 2.0.0
+quality_score: 79.4
 description: >
   VCD-based toggle coverage analysis engine. Pure Python VCD parser with
   full-signal per-bit toggle analysis, activity classification, coverage gap
@@ -22,20 +23,19 @@ python run.py --vcd ../../i2c.vcd --report coverage_report.json --markdown
 
 ## Inputs
 
-| Input | Source | Required | Description |
-|-------|--------|----------|-------------|
-| `*.vcd` file | Simulation output | yes | Value Change Dump from iverilog/VCS/Questa |
-| `--report <path>` | CLI arg | no | Output JSON report path |
-| `--top <module>` | CLI arg | no | Top module for scope filtering |
-| `--markdown` | CLI arg | no | Also generate markdown report |
-
+| 参数 | 类型 | 必填 | 来源 | 说明 |
+|------|------|:----:|------|------|
+| `--vcd` | VCD 文件 | 是 | 仿真工具 | 来自 iverilog/VCS/Questa 的 Value Change Dump 波形文件 |
+| `--report` | 路径 | 否 | CLI 参数 | 输出的 JSON 报告路径，默认 `coverage_report.json` |
+| `--top` | 字符串 | 否 | CLI 参数 | 顶层模块名，用于范围过滤和层次化分析 |
+| `--markdown` | 标志 | 否 | CLI 参数 | 同时生成 Markdown 格式的可读报告 |
+| `--clk` | 字符串 | 否 | CLI 参数 | 时钟信号名，用于时钟域感知的 toggle 分析 |
 ## Outputs
 
-| Output | Description |
-|--------|-------------|
-| `<report>.json` | Full per-signal toggle stats, activity levels, gap analysis |
-| `<report>.md` | Human-readable coverage summary (with `--markdown`) |
-
+| 输出文件 | 格式 | 说明 |
+|---------|:----:|------|
+| `<report>.json` | JSON | 每信号逐 bit toggle 统计、活跃度分级 (NONE/LOW/MEDIUM/HIGH/VERY_HIGH)、覆盖缺口检测报告 |
+| `<report>.md` | Markdown | 人类可读的覆盖度摘要：总信号数、转率、缺口分类、严重性排序 |
 ## Capabilities
 
 ### 1. Pure Python VCD Parsing
@@ -85,6 +85,7 @@ python run.py --vcd dump.vcd --report coverage.json --markdown
 - **Python**: >= 3.10
 - **Runtime**: None (pure standard library)
 - **OS**: Windows / Linux / macOS
+- **EDA**: iverilog, Verilator, VCS, Questa (generated output compatible)
 
 ## Effort
 

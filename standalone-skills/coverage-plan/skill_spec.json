@@ -1,0 +1,49 @@
+{
+  "name": "coverage-plan",
+  "version": "1.0.0",
+  "quality_score": 78.9,
+  "description": "Generate functional coverage groups from verification plan: interface coverage, register coverage, and cross coverage.",
+  "inputs": {
+    "--spec": {
+      "type": "file",
+      "required": true,
+      "description": "Path to spec YAML"
+    },
+    "--out": {
+      "type": "dir",
+      "required": false,
+      "description": "Output directory"
+    }
+  },
+  "outputs": {
+    "result_json": {
+      "path": "result.json"
+    },
+    "report_files": [
+      {
+        "path": "rtl/verification/env/coverage/{module}_cov.sv",
+        "format": "sv",
+        "description": "Coverage groups"
+      }
+    ]
+  },
+  "depends_on": [
+    "spec-analyzer"
+  ],
+  "config": {},
+  "error_codes": {
+    "3": {
+      "description": "Coverage generation failed",
+      "recovery": "Check register and interface definitions"
+    }
+  },
+  "tags": [
+    "coverage",
+    "functional",
+    "planning"
+  ],
+  "lifecycle": {
+    "status": "stable",
+    "last_reviewed": "2026-05-20"
+  }
+}

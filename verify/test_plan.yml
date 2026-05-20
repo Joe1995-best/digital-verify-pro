@@ -1,0 +1,85 @@
+# 验证计划 / 测试点分解表 — feature-decomposer 产出
+# 第二道评审节点：每个 feature 展开为 1+ 测试点
+# tb_gen 的唯⼀输入
+
+module: i2c_controller
+
+testpoints:
+  - id: REG_RW_001
+    feature: reg_rw
+    description: "CTRL enable 写 1 读回 1"
+    stage: v1_smoke
+    base_seq: apb_rw_seq
+    stimulus: "APB write 0x00=1 -> APB read 0x00 -> expect[0]=1"
+
+  - id: REG_RW_002
+    feature: reg_rw
+    description: "CTRL speed_sel RMW"
+    stage: v1_smoke
+    base_seq: apb_rw_seq
+
+  - id: REG_RW_003
+    feature: reg_rw
+    description: "全部寄存器 bit-bash"
+    stage: v2_stress
+    base_seq: apb_rw_seq
+
+  - id: I2C_WRITE_001
+    feature: i2c_write
+    description: "单字节 write (standard speed)"
+    stage: v2_stress
+    base_seq: i2c_base_seq
+
+  - id: I2C_WRITE_016
+    feature: i2c_write
+    description: "16 字节连续 write (standard speed)"
+    stage: v2_stress
+    base_seq: i2c_base_seq
+
+  - id: I2C_WRITE_256
+    feature: i2c_write
+    description: "256 字节 write (fast speed)"
+    stage: v3_signoff
+    base_seq: i2c_base_seq
+
+  - id: I2C_READ_001
+    feature: i2c_read
+    description: "单字节 read (standard speed)"
+    stage: v2_stress
+    base_seq: i2c_base_seq
+
+  - id: I2C_READ_016
+    feature: i2c_read
+    description: "16 字节连续 read"
+    stage: v2_stress
+    base_seq: i2c_base_seq
+
+  - id: I2C_SPEED_001
+    feature: i2c_speed
+    description: "切换 speed 模式后传输"
+    stage: v3_signoff
+    base_seq: i2c_base_seq
+
+  - id: I2C_ARB_001
+    feature: i2c_arbitration
+    description: "双主竞争仲裁"
+    stage: v3_signoff
+    base_seq: i2c_base_seq
+
+  - id: I2C_STRETCH_001
+    feature: i2c_clock_stretch
+    description: "从机 clock stretch 响应"
+    stage: v3_signoff
+    base_seq: i2c_base_seq
+
+  - id: INTR_001
+    feature: intr_handling
+    description: "传输完成中断产生与 W1C 清除"
+    stage: v2_stress
+    base_seq: apb_rw_seq
+
+  - id: ERR_001
+    feature: error_recovery
+    description: "NACK 检测与总线恢复"
+    stage: v3_signoff
+    base_seq: i2c_base_seq

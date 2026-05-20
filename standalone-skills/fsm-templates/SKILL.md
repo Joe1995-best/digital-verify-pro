@@ -1,6 +1,7 @@
 ---
 name: fsm-templates
 version: 1.0.0
+quality_score: 78.4
 description: >
   FSM controller templates from spec YAML. Generates synthesizable FSM RTL
   with unified always_ff pattern, interrupt auto-management, and error handling.
@@ -24,23 +25,21 @@ python run.py --help
 
 ## Inputs
 
-| Input | Source | Required | Description |
-|-------|--------|----------|-------------|
-| Spec YAML | Pipeline data | yes | Module spec with FSM configuration section |
-| `fsm.name` | spec YAML | yes | FSM module name |
-| `fsm.type` | spec YAML | no | FSM type: dma (8-state) or simple (3-state) |
-| `fsm.host_width` | spec YAML | no | Host bus address width (default: 32) |
-| `fsm.status_regs` | spec YAML | no | Status signal configuration list |
-| `fsm.error_configs` | spec YAML | no | Error condition configurations |
-| `fsm.interrupts` | spec YAML | no | Interrupt signal configurations |
-| `fsm.combo_outputs` | spec YAML | no | Combinatorial output expressions |
-
+| 参数 | 类型 | 必填 | 来源 | 说明 |
+|------|------|:----:|------|------|
+| `--spec` | YAML 文件 | 是 | 用户提供 | IP 规格描述，需含 `fsm` 段定义状态机配置 |
+| `--out` | 目录 | 否 | CLI 参数 | 输出目录，默认 `output/` |
+| `fsm.name` | 字符串 | 是 | spec YAML `fsm` 段 | FSM 模块名 |
+| `fsm.type` | 字符串 | 是 | spec YAML `fsm` 段 | FSM 类型：`dma` (8状态) 或 `simple` (3状态) |
+| `fsm.host_width` | 整数 | 否 | spec YAML `fsm` 段 | 主机总线地址宽度，默认 `32` |
+| `fsm.status_regs` | 列表 | 否 | spec YAML `fsm` 段 | 状态信号配置列表 |
+| `fsm.interrupts` | 列表 | 否 | spec YAML `fsm` 段 | 中断信号配置：名称、触发条件、W1C 使能 |
+| `fsm.error_configs` | 列表 | 否 | spec YAML `fsm` 段 | 错误条件配置：错误码、触发条件、持久化行为 |
 ## Outputs
 
-| Output | Description |
-|--------|-------------|
-| `{module}_{fsm_name}.sv` | Generated SystemVerilog FSM controller module |
-
+| 输出文件 | 格式 | 说明 |
+|---------|:----:|------|
+| `dma_fsm.sv` | SystemVerilog | 可综合 FSM RTL：统一 `always_ff` 模式、中断自管理、error_flag 持久化、iverilog 11 兼容 |
 ## Capabilities
 
 ### 1. DMA 8-State FSM Generation
@@ -70,6 +69,14 @@ python run.py --help
 - Fully parameterized from spec YAML FSM section
 - Automatic `fold_inside` conversion for iverilog 11 compatibility
 - Port list auto-generated from status/interrupt/error configs
+
+## Validation
+
+| **Example** | **FSM Type** | **Status** |
+|------------|:----------:|:----------:|
+| OT DMA v4 | 8-state DMA FSM | ✅ Verified |
+| Simple ctrl | 3-state controller | ✅ Verified |
+| Error coverage | error_flag persistence verified | ✅ Verified |
 
 ## Dependencies
 

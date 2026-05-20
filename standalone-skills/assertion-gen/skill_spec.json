@@ -1,0 +1,54 @@
+{
+  "name": "assertion-gen",
+  "version": "1.0.0",
+  "quality_score": 78.9,
+  "description": "Generate SystemVerilog Assertions (SVA) from spec: interface protocols, internal invariants, register access rules, and timing requirements.",
+  "inputs": {
+    "--spec": {
+      "type": "file",
+      "required": true,
+      "description": "Path to spec YAML"
+    },
+    "--out": {
+      "type": "dir",
+      "required": false,
+      "description": "Output directory"
+    }
+  },
+  "outputs": {
+    "result_json": {
+      "path": "result.json"
+    },
+    "report_files": [
+      {
+        "path": "rtl/verification/env/assertions/apb_assert.sv",
+        "format": "sv",
+        "description": "APB protocol assertions"
+      },
+      {
+        "path": "rtl/verification/env/assertions/reg_assert.sv",
+        "format": "sv",
+        "description": "Register assertions"
+      }
+    ]
+  },
+  "depends_on": [
+    "spec-analyzer"
+  ],
+  "config": {},
+  "error_codes": {
+    "3": {
+      "description": "Assertion generation failed",
+      "recovery": "Verify interface definitions in spec"
+    }
+  },
+  "tags": [
+    "sva",
+    "assertion",
+    "generation"
+  ],
+  "lifecycle": {
+    "status": "stable",
+    "last_reviewed": "2026-05-20"
+  }
+}

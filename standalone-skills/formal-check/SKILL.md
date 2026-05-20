@@ -1,6 +1,7 @@
 ---
 name: formal-check
 version: 1.0.0
+quality_score: 78.4
 description: >
   Formal property verification engine. Reads spec YAML, generates SVA assertions
   for registers, FSM, and interfaces, produces SymbiYosys .sby config, optionally
@@ -21,20 +22,21 @@ python run.py --spec ../../spi_slave_spec.yml --no-run
 
 ## Inputs
 
-| Input | Source | Required | Description |
-|-------|--------|----------|-------------|
-| `--spec <file>` | CLI arg | yes | Path to spec YAML file |
-| `--out <dir>` | CLI arg | no | Output directory (default: output/) |
-| `--no-run` | CLI flag | no | Skip SymbiYosys execution (generate only) |
-
+| 参数 | 类型 | 必填 | 来源 | 说明 |
+|------|------|:----:|------|------|
+| `--spec` | YAML 文件 | 是 | 用户提供 | IP 规格描述，含寄存器定义、FSM 配置、接口时序 |
+| `--out` | 目录 | 否 | CLI 参数 | 输出目录，默认 `output/` |
+| `--no-run` | 标志 | 否 | CLI 参数 | 跳过 SymbiYosys 执行，仅生成断言和 .sby 配置 |
+| `--bmc-depth` | 整数 | 否 | CLI 参数 | BMC 展开深度，默认 `20` |
 ## Outputs
 
-| Output | Description |
-|--------|-------------|
-| SVA `assert_*.sv` files | Generated SystemVerilog assertions for registers, FSM, interfaces |
-| `.sby` config | SymbiYosys configuration for formal tools |
-| `formal_report.md` | Formal verification summary report |
-
+| 输出文件 | 格式 | 说明 |
+|---------|:----:|------|
+| `formal/assert_reg.sv` | SystemVerilog | 寄存器形式断言：读/写行为、域访问权限、地址范围假设 |
+| `formal/assert_fsm.sv` | SystemVerilog | FSM 形式断言：状态可达性、转移合法性、one-hot 编码检查 |
+| `formal/assert_iface.sv` | SystemVerilog | 接口协议形式断言：握手时序、数据完整 |
+| `formal/{module}.sby` | YAML | SymbiYosys 配置文件：时钟/复位假设、BMC 深度、引擎选择 |
+| `formal_report.md` | Markdown | 形式验证摘要报告：PASS/FAIL 按类别汇总、覆盖度量统计 |
 ## Capabilities
 
 ### 1. Register Property Generation
@@ -64,6 +66,13 @@ python run.py --spec ../../spi_slave_spec.yml --no-run
 - Pass/fail summary per property category
 - Coverage metrics (proven properties vs bounded)
 - Warning for unreachable cover statements
+
+## Validation
+
+| **Example** | **Properties** | **Status** |
+|------------|:-------------:|:----------:|
+| Dual Port Stack | Full formal proof | ✅ Verified |
+| OT DMA | Register + FSM properties | ✅ Verified |
 
 ## Dependencies
 

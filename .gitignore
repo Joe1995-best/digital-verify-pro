@@ -3,43 +3,80 @@ __pycache__/
 *.pyc
 *.pyo
 *.egg
-.env
-.venv
 
-# Iverilog simulation outputs
-*.o
-*.vvp
+# Temp quality pipeline output
+_q_*.json
+_t.json
+_r.json
+_fd.json
+_sg.json
+_ce.json
+_tmp.json
+*_quality.json
+
+# Temp format check files
+fmt_check.*
+fmt_*.*
+output_*.*
+output_format_check.*
+output_csv.csv
+output_tcl.tcl
+output_xml.xml
+output_yml.yml
+output_html.html
+output_v.v
+output_c.c
+
+# Test generated content
+verify_pro_alu4/
+verify_pro_dual_port_stack/
+quickstart/
+review_report.md
+tb_quality.json
+env_quality.json
+schemas/
+_detailed_gaps.py
+_fix_log.txt
+_analysis.py
+
+# Build artifacts
+*.simv
+compile.log
 *.vcd
+sim_results.yml
 
-# Generated outputs
-output/
-output_i2c/
-output_ot_dma/
-output_spi/
-output_opt/
-
-# Quality reports (regenerated on demand)
-quality_report.json
-quality_report.md
-
-# System
-*.log
-*.swp
-.DS_Store
-Thumbs.db
-
-# Large binary
-i2c_cov_sim
-spi_slave_sim
-spi_slave.o
-dma_core.vcd
-dma_fix.vcd
-dma_full_test.vcd
-dma_reg_test.vcd
-alu4.vcd
-dual_port_stack.vcd
-dual_port_stack_v2.vcd
-tb_i2c_full.vcd
-i2c.vcd
-i2c_cov.vcd
-spi_slave.vcd
+# Generated placeholder SV files (temp, not real RTL)
+standalone-skills/env-builder/i2c_*
+standalone-skills/env-builder/{module}_*
+standalone-skills/env-builder/tb_top.sv
+standalone-skills/env-builder/env_pkg.sv
+standalone-skills/env-builder/sim/
+standalone-skills/env-builder/rtl/
+standalone-skills/test-generator/i2c_*
+standalone-skills/test-generator/{module}_*
+standalone-skills/test-generator/rtl/
+standalone-skills/regmodel-gen/i2c_*
+standalone-skills/regmodel-gen/{module}_*
+standalone-skills/regmodel-gen/ctrl_reg.sv
+standalone-skills/regmodel-gen/rtl/
+standalone-skills/fsm-templates/dma_fsm.sv
+standalone-skills/fsm-templates/{module}_*
+standalone-skills/scoreboard-gen/rtl/
+standalone-skills/scoreboard-gen/sb*.sv
+standalone-skills/coverage-plan/rtl/
+standalone-skills/coverage-plan/{module}_*
+standalone-skills/assertion-gen/apb_assert.sv
+standalone-skills/assertion-gen/reg_assert.sv
+standalone-skills/assertion-gen/reset_assert.sv
+standalone-skills/assertion-gen/rtl/
+standalone-skills/spec-analyzer/interface-list.yml
+standalone-skills/spec-analyzer/register-map.yml
+standalone-skills/spec-analyzer/test-scenarios.yml
+standalone-skills/spec-analyzer/verification-plan.md
+standalone-skills/tb-compiler/Makefile
+standalone-skills/tb-compiler/compile.do
+standalone-skills/tb-compiler/.do
+standalone-skills/tb-compiler/simv
+standalone-skills/tb-compiler/run_tb_compile.py
+standalone-skills/formal-check/formal/
+standalone-skills/formal-check/.sby

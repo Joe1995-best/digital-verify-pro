@@ -1,0 +1,62 @@
+{
+  "name": "plan-generator",
+  "version": "2.0.0",
+  "quality_score": 76.9,
+  "description": "Verification plan generator from RTL source analysis: FSM extraction, data path analysis, control complexity scoring, differentiated test generation.",
+  "inputs": {
+    "--vcd": {
+      "type": "file",
+      "required": false,
+      "description": "VCD for toggle analysis"
+    },
+    "--clk": {
+      "type": "string",
+      "required": false,
+      "description": "Clock signal name"
+    },
+    "--fsm": {
+      "type": "string",
+      "required": false,
+      "description": "FSM state register signal"
+    },
+    "--output": {
+      "type": "dir",
+      "required": false,
+      "description": "Output directory"
+    }
+  },
+  "outputs": {
+    "result_json": {
+      "path": "result.json"
+    },
+    "report_files": [
+      {
+        "path": "verification-plan.md",
+        "format": "md",
+        "description": "Full verification plan"
+      },
+      {
+        "path": "test-scenarios.yml",
+        "format": "yaml",
+        "description": "Differentiated test scenarios"
+      }
+    ]
+  },
+  "depends_on": [],
+  "config": {},
+  "error_codes": {
+    "3": {
+      "description": "RTL analysis failed",
+      "recovery": "Check VCD file format or RTL source accessibility"
+    }
+  },
+  "tags": [
+    "planning",
+    "rtl-analysis",
+    "fsm"
+  ],
+  "lifecycle": {
+    "status": "stable",
+    "last_reviewed": "2026-05-20"
+  }
+}

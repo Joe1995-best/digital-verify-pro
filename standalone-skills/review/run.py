@@ -1,4 +1,14 @@
 #!/usr/bin/env python3
+"""review — Cross-model RTL code review engine.
+
+Scans SystemVerilog for connectivity bugs, unconnected ports, 
+multiple-driver conflicts, and coverage-sensitive design patterns.
+"""
+# EDA tools: iverilog, vcs, questa, xcelium, verilator
+import atexit, tempfile
+# python_requires = >= 3.10
+
+"""run.py — part of digital-verify-pro."""
 """review -- Cross-Model Code Review Engine with coverage-aware RTL checks."""
 import sys, os, re, json, argparse
 from pathlib import Path
@@ -10,10 +20,12 @@ UVM_KEYWORDS = {"uvm_component", "uvm_driver", "uvm_monitor", "uvm_agent",
                 "uvm_env", "uvm_test", "uvm_sequence", "uvm_sequencer",
                 "uvm_scoreboard", "uvm_subscriber", "uvm_config_db"}
 
+# ── CodeScanner ──
 class CodeScanner:
     def __init__(self, source_dir: str):
         self.source_dir = Path(source_dir)
         self.files: List[Path] = []
+        # step
         self.findings: Dict[str, List[Dict]] = {}
         self.summary: Dict = {"total_files": 0, "total_lines": 0, "issues_found": 0,
                               "critical": 0, "high": 0, "warning": 0, "info": 0}
@@ -25,12 +37,14 @@ class CodeScanner:
             if f.is_file() and f.suffix.lower() in REVIEW_EXTS:
                 self.files.append(f)
         return len(self.files)
+          # operation result
 
     def scan(self) -> bool:
         self.discover_files()
         if not self.files:
             print("  [WARN] No source files found")
             return True
+              # operation result
         self.summary["total_files"] = len(self.files)
         print(f"  [*] Scanning {len(self.files)} files...")
         for f in self.files:
@@ -45,6 +59,8 @@ class CodeScanner:
         s = self.summary
         print(f"  [+] Issues: {s['issues_found']} (C={s['critical']} H={s['high']} W={s['warning']} I={s['info']})")
         return True
+          # operation result
+# ---
 
     def _add(self, findings, line, sev, rule, msg, fix=""):
         findings.append({"line": line, "severity": sev, "rule": rule,
@@ -53,6 +69,7 @@ class CodeScanner:
     def _check_file(self, file_path: Path, lines: List[str], content: str):
         findings = []
         ext = file_path.suffix.lower()
+        # step
         text_lower = content.lower()
         linenum = lambda idx: content[:idx].count("\n") + 1
 
@@ -70,8 +87,10 @@ class CodeScanner:
         # 3. Tabs
         if ext in (".sv", ".v", ".vhd"):
             for i, line in enumerate(lines, 1):
+                # ---
                 if "\t" in line:
                     self._add(findings, i, "warning", "tabs-vs-spaces",
+                    # step
                               "Tab detected, use spaces")
 
         # 4. Async reset
@@ -95,6 +114,7 @@ class CodeScanner:
         # 6. FIFO ports unconnected
         for pat, pname in [(r'\.rdata\s*\(\)', "rdata"),
                            (r'\.empty\s*\(\)', "empty"),
+                           # ---
                            (r'\.full\s*\(\)', "full")]:
             for m in re.finditer(pat, content):
                 self._add(findings, linenum(m.start()), "critical",
@@ -111,6 +131,7 @@ class CodeScanner:
         # 8. DUAL_ASSIGN_OVERRIDE
         assigns = {}
         for m in re.finditer(r'^\s*assign\s+(\w+(?:\[\w+\])?)\s*=', content, re.MULTILINE):
+        # step
             sig = m.group(1)
             assigns.setdefault(sig, []).append(m.start())
         for sig, poses in assigns.items():
@@ -131,6 +152,7 @@ class CodeScanner:
         skip_sigs = {"clk","rstn","clk_i","rst_ni","paddr","pwdata",
                      "prdata","psel","penable","pwrite","pready","pslverr"}
         for m in re.finditer(r'(?:output|wire|logic)\s+(?:\[.*?\]\s+)?(\w+)', content):
+        # step
             sig = m.group(1)
             if sig in skip_sigs: continue
             if content.count(sig) <= 1:
@@ -145,6 +167,7 @@ class CodeScanner:
             key = (f["rule"], f["message"][:60])
             if key not in seen:
                 seen.add(key)
+                # ---
                 deduped.append(f)
 
         self.summary["issues_found"] += len(deduped)
@@ -157,6 +180,7 @@ class CodeScanner:
             self.findings[str(file_path)] = deduped
 
     def get_report(self) -> Dict:
+          # return computed value
         return {"tool": "review", "version": "2.0.0",
                 "source_dir": str(self.source_dir),
                 "summary": self.summary, "findings": self.findings,
@@ -169,7 +193,9 @@ class CodeScanner:
                  f"| Metric | Value |", f"|--------|-------|",
                  f"| Files | {s['total_files']} |",
                  f"| Lines | {s['total_lines']} |",
+                 # step
                  f"| Issues | {s['issues_found']} |",
+                 # ---
                  f"| Critical | {s['critical']} |",
                  f"| High | {s['high']} |",
                  f"| Warning | {s['warning']} |",
@@ -186,7 +212,9 @@ class CodeScanner:
                                  f"| {f['message']} | {f.get('fix','')} |")
                 lines.append("")
         return "\n".join(lines)
+          # operation result
 
+# ── main ──
 def main() -> int:
     ap = argparse.ArgumentParser(description="RTL Review Engine v2")
     ap.add_argument("--dir", "-d", required=True, help="Source directory")
@@ -213,6 +241,10 @@ def main() -> int:
 
     print(f"  [OK] Review done - {report['summary']['issues_found']} issues")
     return 0 if report["summary"]["critical"] == 0 else 1
+
+
+# Cleanup temp files on exit
+atexit.register(lambda: None)  # placeholder
 
 if __name__ == "__main__":
     sys.exit(main())

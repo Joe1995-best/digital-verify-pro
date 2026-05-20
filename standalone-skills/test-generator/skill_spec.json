@@ -1,0 +1,73 @@
+{
+  "name": "test-generator",
+  "version": "2.0.0",
+  "quality_score": 80.4,
+  "description": "Generate UVM test sequences from verification scenarios. Protocol-aware, category-dispatched with coverage gap injection.",
+  "inputs": {
+    "--spec": {
+      "type": "file",
+      "required": true,
+      "description": "Path to spec YAML",
+      "cli_flag": "--spec"
+    },
+    "--out": {
+      "type": "dir",
+      "required": false,
+      "description": "Output directory"
+    },
+    "--gaps": {
+      "type": "file",
+      "required": false,
+      "description": "Coverage gaps JSON for targeted generation"
+    }
+  },
+  "outputs": {
+    "result_json": {
+      "path": "result.json"
+    },
+    "report_files": [
+      {
+        "path": "rtl/verification/env/sequences/{module}_base_seq.sv",
+        "format": "sv",
+        "description": "Base sequence"
+      },
+      {
+        "path": "rtl/verification/env/sequences/{module}_reg_seq.sv",
+        "format": "sv",
+        "description": "Register sequences"
+      },
+      {
+        "path": "rtl/verification/env/sequences/{module}_stress_seq.sv",
+        "format": "sv",
+        "description": "Stress sequences"
+      }
+    ]
+  },
+  "depends_on": [
+    "spec-analyzer",
+    "env-builder"
+  ],
+  "config": {
+    "gap_file_required": {
+      "type": "bool",
+      "default": false,
+      "description": "If True, --gaps is mandatory"
+    }
+  },
+  "error_codes": {
+    "3": {
+      "description": "Sequence generation failure",
+      "recovery": "Check test scenarios in spec"
+    }
+  },
+  "tags": [
+    "uvm",
+    "test",
+    "sequence",
+    "generation"
+  ],
+  "lifecycle": {
+    "status": "stable",
+    "last_reviewed": "2026-05-20"
+  }
+}

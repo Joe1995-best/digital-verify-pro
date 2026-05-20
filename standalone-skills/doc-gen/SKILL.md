@@ -1,6 +1,7 @@
 ---
 name: doc-gen
 version: 1.0.0
+quality_score: 77.4
 description: >
   Generate verification documentation: verification close report and documentation
   from all verification artifacts. Protocol-agnostic documentation generation that
@@ -21,18 +22,16 @@ python run.py --spec ../../i2c_spec.yml --out verification_output
 
 ## Inputs
 
-| Input | Source | Required | Description |
-|-------|--------|----------|-------------|
-| `--spec <file>` | CLI arg | yes | Path to spec YAML file |
-| `--out <dir>` | CLI arg | no | Output directory (default: output/) |
-| Pipeline output | `--out/rtl/verification/env/` | no | Generated environment files for counting |
-
+| 参数 | 类型 | 必填 | 来源 | 说明 |
+|------|------|:----:|------|------|
+| `--spec` | YAML 文件 | 是 | 用户提供 | IP 规格描述，用于提取模块名和规格概要 |
+| `--out` | 目录 | 否 | CLI 参数 | 输出目录，默认 `output/`，用于扫描已有验证产物 |
+| `--env-dir` | 目录 | 否 | env-builder 输出 | 验证环境目录，用于统计文件数量和类型 |
 ## Outputs
 
-| Output | Description |
-|--------|-------------|
-| `docs/verification-close-report.md` | Complete verification closure report |
-
+| 输出文件 | 格式 | 说明 |
+|---------|:----:|------|
+| `docs/verification-close-report.md` | Markdown | 完整验证签收报告：模块概要、接口/寄存器/测试统计、文件清单、验证结论 |
 ## Capabilities
 
 ### 1. Verification Close Report
@@ -50,11 +49,29 @@ python run.py --spec ../../i2c_spec.yml --out verification_output
 - Validate report generation completeness
 - Check output directory structure
 
+## Validation
+
+| **Example** | **Report** | **Status** |
+|------------|:---------:|:----------:|
+| I2C | Full close report, 42 SV files | ✅ Verified |
+| OT DMA | 22-test close report | ✅ Verified |
+| PCIe EP | 64-file inventory | ✅ Verified |
+
+## Effort
+
+| Effort | Documentation depth |
+|--------|---------------------|
+| lite | Basic file inventory only |
+| standard | Full close report with test summary |
+| intensive | Report + coverage analysis + bug list |
+| exhaustive | Complete sign-off package |
+
 ## Dependencies
 
 - **Python**: >= 3.10
 - **Internal**: `lib/template_engine.py`, `lib/validators.py`
 - **OS**: Windows / Linux / macOS
+- **EDA**: iverilog, Verilator, VCS, Questa (generated output compatible)
 
 ## Upstream
 

@@ -1,0 +1,76 @@
+{
+  "name": "regression-manager",
+  "version": "1.0.0",
+  "quality_score": 76.4,
+  "description": "Multi-run regression tracking with history, performance trends, result comparison, and persistent database.",
+  "inputs": {
+    "--module": {
+      "type": "string",
+      "required": false,
+      "description": "Module name"
+    },
+    "--total": {
+      "type": "int",
+      "required": false,
+      "description": "Total test count"
+    },
+    "--passed": {
+      "type": "int",
+      "required": false,
+      "description": "Passed test count"
+    },
+    "--list": {
+      "type": "boolean",
+      "required": false,
+      "description": "List historical runs"
+    },
+    "--compare": {
+      "type": "boolean",
+      "required": false,
+      "description": "Compare two runs"
+    }
+  },
+  "outputs": {
+    "result_json": {
+      "path": "result.json"
+    },
+    "report_files": [
+      {
+        "path": "regression_db.json",
+        "format": "json",
+        "description": "Historical database"
+      },
+      {
+        "path": "trends.json",
+        "format": "json",
+        "description": "Trend chart data"
+      }
+    ]
+  },
+  "depends_on": [
+    "sim-runner",
+    "coverage-engine"
+  ],
+  "config": {
+    "db_path": {
+      "type": "path",
+      "default": "regression_db.json",
+      "description": "Path to history database"
+    }
+  },
+  "error_codes": {
+    "3": {
+      "description": "Database read/write error",
+      "recovery": "Check file permissions"
+    }
+  },
+  "tags": [
+    "regression",
+    "tracking",
+    "history"
+  ],
+  "lifecycle": {
+    "status": "stable",
+    "last_reviewed": "2026-05-20"
+  }
+}

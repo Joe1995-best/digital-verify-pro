@@ -1,0 +1,52 @@
+{
+  "name": "doc-gen",
+  "version": "1.0.0",
+  "quality_score": 77.4,
+  "description": "Generate verification close documentation from all verification artifacts: file inventory, test summary, sign-off report.",
+  "inputs": {
+    "--spec": {
+      "type": "file",
+      "required": true,
+      "description": "Path to spec YAML"
+    },
+    "--out": {
+      "type": "dir",
+      "required": false,
+      "description": "Output directory"
+    }
+  },
+  "outputs": {
+    "result_json": {
+      "path": "result.json"
+    },
+    "report_files": [
+      {
+        "path": "docs/verification-close-report.md",
+        "format": "md",
+        "description": "Complete sign-off report"
+      }
+    ]
+  },
+  "depends_on": [
+    "env-builder",
+    "test-generator",
+    "assertion-gen",
+    "scoreboard-gen",
+    "coverage-plan"
+  ],
+  "config": {},
+  "error_codes": {
+    "3": {
+      "description": "Document generation failed",
+      "recovery": "Ensure all upstream skills have run"
+    }
+  },
+  "tags": [
+    "documentation",
+    "sign-off"
+  ],
+  "lifecycle": {
+    "status": "stable",
+    "last_reviewed": "2026-05-20"
+  }
+}

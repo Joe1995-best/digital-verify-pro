@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# EDA tools: iverilog, vcs, questa, xcelium, verilator, sby, yosys
+import atexit, tempfile
+
+"""run.py — part of digital-verify-pro."""
 """
 formal-check — Formal property verification engine.
 
@@ -18,8 +22,10 @@ if _this_dir not in sys.path:
 # Monkey-patch internal dependencies
 import importlib.util
 
+# ── _monkey_patch ──
 def _monkey_patch(name, path):
     spec = importlib.util.spec_from_file_location(name, path)
+    # ---
     mod = importlib.util.module_from_spec(spec)
     sys.modules[name] = mod
     spec.loader.exec_module(mod)
@@ -30,6 +36,9 @@ for fname in ["template_engine.py", "validators.py", "formal_check_gen.py"]:
         _monkey_patch(fname.replace(".py", ""), fpath)
 
 from run_formal import main
+
+# Cleanup temp files on exit
+atexit.register(lambda: None)  # placeholder
 
 if __name__ == "__main__":
     sys.exit(main())

@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
+# EDA tools: iverilog, vcs, questa, xcelium, verilator
+
+"""run.py — part of digital-verify-pro."""
 """
 tb-compiler — Verification environment compilation.
 
+Compiles RTL + UVM env into simulation executable. Does NOT run simulation.
+Use sim-runner for test execution.
+
 Usage:
-    python run.py --spec <spec.yml> [--out output_dir] [--tool questa|vcs|xcelium]
+    python run.py --spec <spec.yml> [--out output_dir] [--tool iverilog]
+    python run.py --detect
 """
-import sys
-import os
+import atexit, tempfile  # cleanup
+import sys, os
 
 _this_dir = os.path.dirname(os.path.abspath(__file__))
 _lib_dir = os.path.join(_this_dir, "lib")
@@ -28,15 +35,16 @@ for fname in ["template_engine.py", "questa_vcs_support.py"]:
     if os.path.exists(fpath):
         _monkey_patch(fname.replace(".py", ""), fpath)
 
-from run_sim import main
+from run_tb_compile import main
 
 
 # =============================================================================
-# tb-compiler — Verification environment compilation
+# tb-compiler — VERIFICATION ENVIRONMENT COMPILATION (NOT simulation execution)
 #
-# Generates Makefile/CMakeLists.txt/TCL scripts for EDA tool compilation.
-# Handles UVM package compilation, DUT RTL, testbench, and elaboration.
-#
-# Supported tools: VCS, Xcelium, Questa, Verilator, Icarus
+# Generates compile scripts and optionally runs compilation.
+# Supported tools: iverilog, VCS, Questa, Xcelium, Verilator
 # Dependencies: Python >= 3.10, lib/template_engine, lib/questa_vcs_support
+#
+# Upstream: env-builder, test-generator, assertion-gen, scoreboard-gen, etc.
+# Downstream: sim-runner (consumes compiled simv)
 # =============================================================================

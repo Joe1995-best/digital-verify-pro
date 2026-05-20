@@ -1,6 +1,7 @@
 ---
 name: sim-runner
 version: 1.0.0
+quality_score: 76.4
 description: >
   Run simulations with generated testbenches. Manages test execution, seed
   variation, result logging, pass/fail determination, and simulation log
@@ -21,20 +22,23 @@ python run.py --spec ../../i2c_spec.yml --tool questa
 
 ## Inputs
 
-| Input | Source | Required | Description |
-|-------|--------|----------|-------------|
-| `--spec <file>` | CLI arg | yes | Path to spec YAML file |
-| `--out <dir>` | CLI arg | no | Output directory (default: output/) |
-| `--tool <name>` | CLI arg | no | Simulator tool (questa, vcs, xcelium) |
-
+| 参数 | 类型 | 必填 | 来源 | 说明 |
+|------|------|:----:|------|------|
+| `--spec` | YAML 文件 | 是 | 用户提供 | IP 规格描述，用于解析模块名和测试列表 |
+| `--outdir` | 目录 | 否 | CLI 参数 | 输出/工作目录，默认 `output/` |
+| `--test` | 字符串 | 否 | CLI 参数 | 指定单个测试名运行 |
+| `--all` | 标志 | 否 | CLI 参数 | 运行所有已发现的测试 |
+| `--list` | 标志 | 否 | CLI 参数 | 列出可用测试用例 |
+| `--seeds` | 整数 | 否 | CLI 参数 | 每测试随机种子数，默认 `1` |
+| `--simv` | 路径 | 否 | tb-compiler 输出 | simv 路径覆盖（自动检测失败时使用） |
+| `--dump-vcd` | 标志 | 否 | CLI 参数 | 使能 VCD 波形 dump |
 ## Outputs
 
-| Output | Description |
-|--------|-------------|
-| Simulation logs | Per-test log files with UVM messages |
-| `sim_results.yml` | Pass/fail summary per test and seed |
-| Waveform dumps | VCD/FSDB waveform files (optional) |
-
+| 输出文件 | 格式 | 说明 |
+|---------|:----:|------|
+| `sim_results.yml` | YAML | 逐测试逐种子的 PASS/FAIL 汇总：含仿真耗时、日志路径、失败原因 |
+| `{test_name}_s{seed}.log` | 日志 | 每次仿真运行的完整日志：UVM 消息、断言结果、覆盖率摘要 |
+| `output.vcd` | VCD | 仿真波形 dump（`--dump-vcd` 时可选生成） |
 ## Supported Flow
 
 ```bash
@@ -64,6 +68,14 @@ python run.py --spec ../../i2c_spec.yml
 - Waveform dump generation (optional)
 - Simulation artifact organization
 
+## Validation
+
+| **Example** | **Tests** | **Status** |
+|------------|:-------:|:----------:|
+| ALU4 | 66/66 PASS | ✅ Verified |
+| OT DMA | 22/22 PASS + VCD dump | ✅ Verified |
+| I2C | 10/10 PASS (with CSR tests) | ✅ Verified |
+
 ## Dependencies
 
 - **Python**: >= 3.10
@@ -91,14 +103,4 @@ python run.py --spec ../../i2c_spec.yml
 
 - `waveform-analyzer` — produces post-simulation analysis
 - `doc-gen` — consumes simulation results for documentation
-
-
-## Effort
-
-| Effort | Depth |
-|--------|-------|
-| lite | Single seed, no waveform |
-| standard | 3 seeds, basic logging |
-| intensive | 10 seeds, waveform dump |
-| exhaustive | Full regression + coverage collection |
 

@@ -1,0 +1,66 @@
+{
+  "name": "formal-check",
+  "version": "1.0.0",
+  "quality_score": 78.4,
+  "description": "Formal property verification engine: generates SVA assertions, SymbiYosys .sby config, and optionally runs sby.",
+  "inputs": {
+    "--spec": {
+      "type": "file",
+      "required": true,
+      "description": "Path to spec YAML"
+    },
+    "--out": {
+      "type": "dir",
+      "required": false,
+      "description": "Output directory"
+    },
+    "--no-run": {
+      "type": "boolean",
+      "required": false,
+      "description": "Skip sby execution, generate only"
+    }
+  },
+  "outputs": {
+    "result_json": {
+      "path": "result.json"
+    },
+    "report_files": [
+      {
+        "path": "assert_*.sv",
+        "format": "sv",
+        "description": "Formal assertions"
+      },
+      {
+        "path": "*.sby",
+        "format": "yaml",
+        "description": "SymbiYosys config"
+      },
+      {
+        "path": "formal_report.md",
+        "format": "md",
+        "description": "Formal verification summary"
+      }
+    ]
+  },
+  "depends_on": [],
+  "config": {},
+  "error_codes": {
+    "3": {
+      "description": "Property generation failed",
+      "recovery": "Check spec for FSM/register definitions"
+    },
+    "5": {
+      "description": "sby not found",
+      "recovery": "Install SymbiYosys or use --no-run"
+    }
+  },
+  "tags": [
+    "formal",
+    "verification",
+    "sva"
+  ],
+  "lifecycle": {
+    "status": "stable",
+    "last_reviewed": "2026-05-20"
+  }
+}

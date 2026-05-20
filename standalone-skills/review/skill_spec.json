@@ -1,0 +1,57 @@
+{
+  "name": "review",
+  "version": "2.0.0",
+  "quality_score": 77.4,
+  "description": "Cross-model RTL review: scans SystemVerilog for connectivity bugs, unconnected ports, multiple-driver conflicts, coverage-sensitive patterns.",
+  "inputs": {
+    "--dir": {
+      "type": "dir",
+      "required": true,
+      "description": "Directory with RTL files to review"
+    },
+    "--output": {
+      "type": "file",
+      "required": false,
+      "description": "Output report path"
+    },
+    "--reviewers": {
+      "type": "file",
+      "required": false,
+      "description": "YAML LLM reviewer config"
+    }
+  },
+  "outputs": {
+    "result_json": {
+      "path": "result.json"
+    },
+    "report_files": [
+      {
+        "path": "review_report.md",
+        "format": "md",
+        "description": "Structured review findings"
+      },
+      {
+        "path": "review_summary.json",
+        "format": "json",
+        "description": "Machine-readable findings"
+      }
+    ]
+  },
+  "depends_on": [],
+  "config": {},
+  "error_codes": {
+    "1": {
+      "description": "--dir required",
+      "recovery": "Provide directory with RTL files"
+    }
+  },
+  "tags": [
+    "review",
+    "rtl",
+    "code-quality"
+  ],
+  "lifecycle": {
+    "status": "stable",
+    "last_reviewed": "2026-05-20"
+  }
+}

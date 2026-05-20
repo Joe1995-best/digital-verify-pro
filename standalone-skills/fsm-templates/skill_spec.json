@@ -1,0 +1,59 @@
+{
+  "name": "fsm-templates",
+  "version": "1.0.0",
+  "quality_score": 78.4,
+  "description": "FSM controller RTL templates: generates synthesizable SystemVerilog FSM with unified always_ff pattern, interrupt management, and error handling.",
+  "inputs": {
+    "--spec": {
+      "type": "file",
+      "required": true,
+      "description": "Path to spec YAML with FSM section"
+    },
+    "--out": {
+      "type": "dir",
+      "required": false,
+      "description": "Output directory"
+    }
+  },
+  "outputs": {
+    "result_json": {
+      "path": "result.json"
+    },
+    "report_files": [
+      {
+        "path": "{module}_{fsm_name}.sv",
+        "format": "sv",
+        "description": "Generated FSM RTL"
+      }
+    ]
+  },
+  "depends_on": [
+    "spec-analyzer"
+  ],
+  "config": {
+    "fsm_type": {
+      "type": "choice",
+      "default": "dma",
+      "choices": [
+        "dma",
+        "simple"
+      ],
+      "description": "FSM architecture"
+    }
+  },
+  "error_codes": {
+    "3": {
+      "description": "FSM generation error",
+      "recovery": "Check fsm section in spec YAML"
+    }
+  },
+  "tags": [
+    "rtl",
+    "fsm",
+    "template"
+  ],
+  "lifecycle": {
+    "status": "stable",
+    "last_reviewed": "2026-05-20"
+  }
+}

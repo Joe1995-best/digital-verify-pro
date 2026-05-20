@@ -1,0 +1,73 @@
+{
+  "name": "coverage-engine",
+  "version": "2.0.0",
+  "quality_score": 79.4,
+  "description": "VCD-based toggle coverage analysis engine. Pure Python VCD parser with full-signal per-bit toggle analysis, activity classification, and gap detection.",
+  "inputs": {
+    "--vcd": {
+      "type": "file",
+      "required": true,
+      "description": "VCD file from simulation"
+    },
+    "--report": {
+      "type": "file",
+      "required": false,
+      "description": "Output JSON report path"
+    },
+    "--top": {
+      "type": "string",
+      "required": false,
+      "description": "Top module for scope filtering"
+    },
+    "--markdown": {
+      "type": "boolean",
+      "required": false,
+      "description": "Also generate markdown report"
+    }
+  },
+  "outputs": {
+    "result_json": {
+      "path": "result.json",
+      "schema": {
+        "status": "string",
+        "metrics.total_signals": "int",
+        "metrics.toggle_rate": "float"
+      }
+    },
+    "report_files": [
+      {
+        "path": "{report}.json",
+        "format": "json",
+        "description": "Full per-signal toggle stats"
+      },
+      {
+        "path": "{report}.md",
+        "format": "md",
+        "description": "Coverage summary"
+      }
+    ]
+  },
+  "depends_on": [
+    "sim-runner"
+  ],
+  "config": {},
+  "error_codes": {
+    "1": {
+      "description": "VCD file required",
+      "recovery": "Provide --vcd argument"
+    },
+    "3": {
+      "description": "VCD parse error",
+      "recovery": "Check VCD file format"
+    }
+  },
+  "tags": [
+    "coverage",
+    "analysis",
+    "vcd"
+  ],
+  "lifecycle": {
+    "status": "stable",
+    "last_reviewed": "2026-05-20"
+  }
+}

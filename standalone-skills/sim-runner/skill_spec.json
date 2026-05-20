@@ -1,0 +1,91 @@
+{
+  "name": "sim-runner",
+  "version": "1.0.0",
+  "quality_score": 76.4,
+  "description": "Run simulations with compiled testbenches. EXECUTE ONLY — takes simv and runs tests. Does NOT compile.",
+  "inputs": {
+    "--spec": {
+      "type": "file",
+      "required": true,
+      "description": "Path to spec YAML"
+    },
+    "--out": {
+      "type": "dir",
+      "required": false,
+      "description": "Output directory"
+    },
+    "--tool": {
+      "type": "string",
+      "required": false,
+      "description": "Simulator",
+      "choices": [
+        "questa",
+        "vcs",
+        "xcelium"
+      ]
+    }
+  },
+  "outputs": {
+    "result_json": {
+      "path": "result.json",
+      "schema": {
+        "status": "string",
+        "metrics.total": "int",
+        "metrics.passed": "int",
+        "metrics.failed": "int"
+      }
+    },
+    "report_files": [
+      {
+        "path": "sim_results.yml",
+        "format": "yaml",
+        "description": "Per-test pass/fail summary"
+      },
+      {
+        "path": "output.vcd",
+        "format": "vcd",
+        "description": "Waveform dump (optional)"
+      }
+    ],
+    "exit_codes": {
+      "0": "All tests completed",
+      "5": "simv not found — run tb-compiler first"
+    }
+  },
+  "depends_on": [
+    "tb-compiler"
+  ],
+  "config": {
+    "seeds_per_test": {
+      "type": "int",
+      "default": 1,
+      "description": "Number of random seeds per test"
+    },
+    "dump_waveform": {
+      "type": "bool",
+      "default": false,
+      "description": "Enable VCD waveform dump"
+    }
+  },
+  "error_codes": {
+    "0": {
+      "description": "All tests completed"
+    },
+    "3": {
+      "description": "Simulation runtime error",
+      "recovery": "Check sim_results.yml"
+    },
+    "5": {
+      "description": "simv not found",
+      "recovery": "Run tb-compiler first or set simv_path in config"
+    }
+  },
+  "tags": [
+    "simulation",
+    "execution"
+  ],
+  "lifecycle": {
+    "status": "stable",
+    "last_reviewed": "2026-05-20"
+  }
+}

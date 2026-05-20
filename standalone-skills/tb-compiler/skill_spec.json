@@ -1,0 +1,93 @@
+{
+  "name": "tb-compiler",
+  "version": "1.0.0",
+  "quality_score": 76.4,
+  "description": "Compile verification environment with EDA tool. COMPILE ONLY — generates compile scripts and optionally runs compilation. Does NOT execute simulation.",
+  "inputs": {
+    "--spec": {
+      "type": "file",
+      "required": true,
+      "description": "Path to spec YAML"
+    },
+    "--out": {
+      "type": "dir",
+      "required": false,
+      "description": "Output directory"
+    },
+    "--tool": {
+      "type": "string",
+      "required": false,
+      "description": "Simulator (questa/vcs/xcelium/iverilog)",
+      "default": "auto-detect",
+      "choices": [
+        "questa",
+        "vcs",
+        "xcelium",
+        "iverilog",
+        "verilator"
+      ]
+    }
+  },
+  "outputs": {
+    "result_json": {
+      "path": "result.json",
+      "schema": {
+        "status": "string",
+        "outputs.simv": "string",
+        "compile_log": "string"
+      }
+    },
+    "report_files": [
+      {
+        "path": "compile.log",
+        "format": "log",
+        "description": "Compilation log"
+      },
+      {
+        "path": "simv",
+        "format": "binary",
+        "description": "Simulation executable (if compile succeeded)"
+      }
+    ],
+    "exit_codes": {
+      "0": "Compilation successful",
+      "5": "Simulator not found — install Questa/VCS/Xcelium or iverilog"
+    }
+  },
+  "depends_on": [
+    "env-builder",
+    "test-generator",
+    "scoreboard-gen",
+    "assertion-gen",
+    "coverage-plan",
+    "regmodel-gen"
+  ],
+  "config": {
+    "simulator_path": {
+      "type": "path",
+      "default": "",
+      "description": "Override path to simulator executable"
+    }
+  },
+  "error_codes": {
+    "0": {
+      "description": "Success"
+    },
+    "3": {
+      "description": "Compilation error",
+      "recovery": "Check compile.log for errors"
+    },
+    "5": {
+      "description": "Simulator not found",
+      "recovery": "Install or set simulator_path in config.yaml"
+    }
+  },
+  "tags": [
+    "compilation",
+    "uvm"
+  ],
+  "lifecycle": {
+    "status": "stable",
+    "last_reviewed": "2026-05-20"
+  }
+}

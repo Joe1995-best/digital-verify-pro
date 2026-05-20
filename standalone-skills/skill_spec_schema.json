@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Digital Verify Pro — Skill Spec",
+  "description": "Standard contract definition for a standalone verification skill. Every skill MUST provide a skill_spec.json in its root directory.",
+  "type": "object",
+  "required": ["name", "version", "quality_score", "description", "inputs", "outputs", "depends_on", "config", "error_codes", "tags"],
+
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Skill name, matching directory name",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "quality_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "description": {
+      "type": "string"
+    },
+    "author": {
+      "type": "string",
+      "default": "digital-verify-pro"
+    },
+
+    "inputs": {
+      "type": "object",
+      "description": "CLI arguments accepted by run.py",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["type", "description"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["string", "integer", "boolean", "number", "file", "dir", "json"]
+          },
+          "description": { "type": "string" },
+          "required": { "type": "boolean", "default": false },
+          "default": {},
+          "cli_flag": { "type": "string", "description": "CLI flag (e.g. --spec)" },
+          "json_schema": {
+            "type": "object",
+            "description": "JSON Schema for file/json type inputs"
+          }
+        }
+      }
+    },
+
+    "outputs": {
+      "type": "object",
+      "description": "Files produced and exit behavior",
+      "required": ["result_json", "exit_codes"],
+      "properties": {
+        "result_json": {
+          "type": "object",
+          "description": "Schema for result.json output",
+          "properties": {
+            "path": { "type": "string", "description": "Relative output path, default 'result.json'" },
+            "schema": {
+              "type": "object",
+              "description": "JSON Schema of result.json content"
+            }
+          }
+        },
+        "report_files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": { "type": "string" },
+              "format": { "type": "string", "enum": ["md", "json", "html", "yaml", "sv", "c", "log"] },
+              "description": { "type": "string" }
+            }
+          }
+        },
+        "exit_codes": {
+          "type": "object",
+          "description": "Exit code conventions",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "description": { "type": "string" },
+              "severity": { "type": "string", "enum": ["ok", "warning", "error", "fatal"] }
+            }
+          }
+        }
+      }
+    },
+
+    "depends_on": {
+      "type": "array",
+      "description": "Skills that must run before this one",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9-]+$"
+      }
+    },
+
+    "config": {
+      "type": "object",
+      "description": "Configurable parameters exposed to user",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "enum": ["string", "int", "float", "bool", "path", "choice"] },
+          "default": {},
+          "description": { "type": "string" },
+          "choices": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+
+    "error_codes": {
+      "type": "object",
+      "description": "Well-defined error exit codes",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "description": { "type": "string" },
+          "recovery": { "type": "string" }
+        }
+      }
+    },
+
+    "tags": {
+      "type": "array",
+      "description": "Categorization tags",
+      "items": { "type": "string" }
+    },
+
+    "expected_runtime": {
+      "type": "object",
+      "description": "Expected execution time per effort level",
+      "properties": {
+        "lite": { "type": "string", "default": "< 1s" },
+        "standard": { "type": "string", "default": "1-5s" },
+        "intensive": { "type": "string", "default": "5-30s" },
+        "exhaustive": { "type": "string", "default": "30s-5m" }
+      }
+    },
+
+    "lifecycle": {
+      "type": "object",
+      "description": "Skill lifecycle state",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["development", "beta", "stable", "deprecated"],
+          "default": "stable"
+        },
+        "last_reviewed": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    }
+  }
+}

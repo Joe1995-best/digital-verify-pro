@@ -712,3 +712,99 @@ if not result["passed"]:
     sys.exit(1)
 else:
     print(f"  [VALIDATION] spec-analyzer v2 PASSED")
+
+# ── Write intermediate YAML files ──
+
+def write_port_map(path, interfaces, spec_data):
+    """Write port_map.yml for env-builder / rtl-gen"""
+    module = spec_data.get("module_name", "unknown")
+    connections = []
+    for iface in interfaces:
+        entry = {
+            "port": iface["name"],
+            "protocol": iface.get("protocol", "generic"),
+            "direction": iface.get("direction", "slave"),
+            "description": iface.get("description", ""),
+            "signals": {},
+        }
+        for sig in iface.get("signals", []):
+            sname = sig["name"]
+            entry["signals"][sname] = {
+                "connect": f"{sname}_{{\"i\" if sig.get('direction')=='input' else 'o'}}",
+                "width": sig.get("width", 1),
+            }
+            if sig.get("direction") == "inout":
+                entry["signals"][sname]["bidir"] = True
+        connections.append(entry)
+
+    # Add clk_rst
+    connections.insert(0, {
+        "port": "clk_rst",
+        "protocol": "generic",
+        "signals": {
+            "clk": {"connect": "clk_i", "freq": "50MHz"},
+            "rst": {"connect": "rst_ni", "polarity": "active_low"},
+        }
+    })
+
+    pm = {"module": module, "connections": connections}
+    with open(path, "w", encoding="utf-8") as f:
+        yaml.dump(pm, f, default_flow_style=None, allow_unicode=True, sort_keys=False)
+    print(f"  [PORT_MAP] {path}")
+
+
+def write_reg_map(path, registers, module):
+    """Write reg_map.yml for rtl-gen / regmodel-gen"""
+    regs = []
+    for name, info in sorted(registers.items()):
+        entry = {
+            "name": name,
+            "offset": info.get("address", 0),
+            "size": info.get("width", 32),
+            "description": info.get("description", ""),
+            "fields": [],
+        }
+        for fname, finfo in info.get("fields", {}).items():
+            field = {
+                "name": fname,
+                "bits": finfo.get("bits", [0]),
+                "access": finfo.get("access", "rw"),
+                "reset": finfo.get("reset", 0),
+            }
+            entry["fields"].append(field)
+        regs.append(entry)
+
+    rm = {"module": module, "registers": regs}
+    with open(path, "w", encoding="utf-8") as f:
+        yaml.dump(rm, f, default_flow_style=None, allow_unicode=True, sort_keys=False)
+    print(f"  [REG_MAP] {path}")
+
+
+def write_test_plan(path, scenarios, module):
+    """Write test_plan.yml for tb_gen"""
+    testpoints = []
+    for i, sc in enumerate(scenarios):
+        tp = {
+            "id": f"TP_{i+1:04d}",
+            "feature": sc.get("feature", "general"),
+            "description": sc.get("description", sc.get("name", f"Scenario {i+1}")),
+            "stage": "v2_stress",
+            "base_seq": sc.get("base_seq", ""),
+            "stimulus": sc.get("stimulus", ""),
+        }
+        testpoints.append(tp)
+
+    tp_data = {"module": module, "testpoints": testpoints}
+    with open(path, "w", encoding="utf-8") as f:
+        yaml.dump(tp_data, f, default_flow_style=None, allow_unicode=True, sort_keys=False)
+    print(f"  [TEST_PLAN] {path}")
+
+
+try:
+    module_name = spec_data.get("module_name", "unknown")
+    write_port_map(os.path.join(OUT_DIR, "port_map.yml"), interfaces, spec_data)
+    write_reg_map(os.path.join(OUT_DIR, "reg_map.yml"), register_map, module_name)
+    write_test_plan(os.path.join(OUT_DIR, "test_plan.yml"), all_scenarios, module_name)
+    print(f"  [INTERMEDIATE] 3 YAML files written to {OUT_DIR}/")
+except Exception as e:
+    print(f"  [WARN] Intermediate file generation skipped: {e}")

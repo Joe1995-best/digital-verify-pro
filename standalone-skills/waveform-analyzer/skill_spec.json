@@ -1,0 +1,58 @@
+{
+  "name": "waveform-analyzer",
+  "version": "1.0.0",
+  "quality_score": 77.4,
+  "description": "Post-simulation analysis: extract coverage metrics, identify failures from waveform dumps and log files.",
+  "inputs": {
+    "--log": {
+      "type": "file",
+      "required": false,
+      "description": "Simulation log file"
+    },
+    "--vcd": {
+      "type": "file",
+      "required": false,
+      "description": "VCD waveform file"
+    },
+    "--report": {
+      "type": "file",
+      "required": false,
+      "description": "Output report path"
+    }
+  },
+  "outputs": {
+    "result_json": {
+      "path": "result.json"
+    },
+    "report_files": [
+      {
+        "path": "failure_report.json",
+        "format": "json",
+        "description": "Identified failures"
+      },
+      {
+        "path": "coverage_report.json",
+        "format": "json",
+        "description": "Coverage metrics"
+      }
+    ]
+  },
+  "depends_on": [
+    "sim-runner"
+  ],
+  "config": {},
+  "error_codes": {
+    "3": {
+      "description": "Analysis failed",
+      "recovery": "Check log/VCD file format"
+    }
+  },
+  "tags": [
+    "analysis",
+    "post-simulation"
+  ],
+  "lifecycle": {
+    "status": "stable",
+    "last_reviewed": "2026-05-20"
+  }
+}

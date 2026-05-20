@@ -1,0 +1,61 @@
+{
+  "name": "env-builder",
+  "version": "1.0.0",
+  "quality_score": 80.9,
+  "description": "Generate UVM verification environment skeleton from specification: tb_top, interface wrappers, UVM agent/monitor/sequencer, environment, and testbench harness.",
+  "inputs": {
+    "--spec": {
+      "type": "file",
+      "required": true,
+      "description": "Path to spec YAML",
+      "cli_flag": "--spec"
+    },
+    "--out": {
+      "type": "dir",
+      "required": false,
+      "description": "Output directory",
+      "default": "output"
+    }
+  },
+  "outputs": {
+    "result_json": {
+      "path": "result.json"
+    },
+    "report_files": [
+      {
+        "path": "rtl/verification/env/tb_top.sv",
+        "format": "sv",
+        "description": "Testbench top"
+      },
+      {
+        "path": "rtl/verification/env/env_pkg.sv",
+        "format": "sv",
+        "description": "UVM package"
+      },
+      {
+        "path": "rtl/verification/env/{module}_env.sv",
+        "format": "sv",
+        "description": "UVM env class"
+      }
+    ]
+  },
+  "depends_on": [
+    "spec-analyzer"
+  ],
+  "config": {},
+  "error_codes": {
+    "3": {
+      "description": "Template render failure",
+      "recovery": "Check lib/template_engine.py compatibility"
+    }
+  },
+  "tags": [
+    "uvm",
+    "environment",
+    "generation"
+  ],
+  "lifecycle": {
+    "status": "stable",
+    "last_reviewed": "2026-05-20"
+  }
+}

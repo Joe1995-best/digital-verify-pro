@@ -48,6 +48,12 @@ PIPELINE_PHASES = {
         "depends_on": ["env-builder"],
         "output": ["output/rtl/verification/env/sequences/"],
     },
+    "tb-gen": {
+        "script": "tb_gen.py",
+        "description": "Generate UVM test sequences from test_plan.yml (feature-driven)",
+        "depends_on": ["spec-analyzer"],
+        "output": ["output/tests/", "verify/regression_list.py"],
+    },
     "assertion-gen": {
         "script": "run_assertion_gen.py",
         "description": "Generate SVA assertions per interface",
@@ -88,7 +94,7 @@ PIPELINE_PHASES = {
 }
 
 PIPELINE_ORDER = ["spec-analyzer", "rtl-gen", "ral-gen", "env-builder", "test-generator", "assertion-gen",
-                  "scoreboard-gen", "coverage-plan", "doc-gen", "sw-header-gen", "formal-check"]
+                  "scoreboard-gen", "tb-gen", "coverage-plan", "doc-gen", "sw-header-gen", "formal-check"]
 
 CHECKPOINT_FILE = ".pipeline_state.json"
 

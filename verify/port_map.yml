@@ -1,0 +1,35 @@
+# 端口连接映射表 — spec-analyzer 产出
+# 第二道评审节点：DUT 端口名、信号方向、协议类型
+# env-builder 和 rtl-gen 共用此表
+
+module: i2c_controller
+
+connections:
+  - port: host_if
+    protocol: apb_slave
+    direction: slave
+    description: "APB 从机接口"
+    signals:
+      paddr:   {connect: paddr_i,   width: 12}
+      pwrite:  {connect: pwrite_i}
+      pwdata:  {connect: pwdata_i,  width: 32}
+      prdata:  {connect: prdata_o,  width: 32}
+      psel:    {connect: psel_i}
+      penable: {connect: penable_i}
+      pready:  {connect: pready_o}
+      pslverr: {connect: pslverr_o}
+
+  - port: i2c_bus
+    protocol: i2c
+    direction: master
+    description: "I2C 主设备总线"
+    signals:
+      scl: {connect: scl_io, bidir: true}
+      sda: {connect: sda_io, bidir: true}
+
+  - port: clk_rst
+    protocol: generic
+    description: "时钟与复位"
+    signals:
+      clk: {connect: clk_i,  freq: 50MHz}
+      rst: {connect: rst_ni, polarity: active_low}

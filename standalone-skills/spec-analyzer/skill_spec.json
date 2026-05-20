@@ -1,0 +1,71 @@
+{
+  "name": "spec-analyzer",
+  "version": "2.0.0",
+  "quality_score": 79.9,
+  "description": "Parse spec YAML into a full verification plan. Identifies protocols, interfaces, registers, FSM configurations, and generates test scenarios with functional coverage goals.",
+  "inputs": {
+    "--spec": {
+      "type": "file",
+      "required": true,
+      "description": "Path to spec YAML file",
+      "cli_flag": "--spec"
+    },
+    "--out": {
+      "type": "dir",
+      "required": false,
+      "description": "Output directory",
+      "default": "output",
+      "cli_flag": "--out"
+    }
+  },
+  "outputs": {
+    "result_json": {
+      "path": "result.json",
+      "schema": {
+        "status": "string",
+        "files": [
+          "string"
+        ]
+      }
+    },
+    "report_files": [
+      {
+        "path": "verification-plan.md",
+        "format": "md",
+        "description": "Full verification plan"
+      },
+      {
+        "path": "interface-list.yml",
+        "format": "yaml",
+        "description": "Interface definitions"
+      },
+      {
+        "path": "register-map.yml",
+        "format": "yaml",
+        "description": "Register map"
+      },
+      {
+        "path": "test-scenarios.yml",
+        "format": "yaml",
+        "description": "Test scenarios"
+      }
+    ]
+  },
+  "depends_on": [],
+  "config": {},
+  "error_codes": {
+    "2": {
+      "description": "Spec YAML parse failure",
+      "recovery": "Check YAML syntax, ensure required fields (name, interfaces)"
+    }
+  },
+  "tags": [
+    "verification",
+    "planning",
+    "spec"
+  ],
+  "lifecycle": {
+    "status": "stable",
+    "last_reviewed": "2026-05-20"
+  }
+}

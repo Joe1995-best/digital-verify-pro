@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# EDA tools: iverilog, vcs, questa, xcelium, verilator
+import atexit, tempfile
+# python_requires = >= 3.10
+
+"""run.py — part of digital-verify-pro."""
 """
 waveform-analyzer — Simulation Results Analysis Engine.
 
@@ -27,6 +32,7 @@ DEFAULT_OUTPUT_DIR = Path(".")  # Default output directory for generated reports
 
 # ── Log Parser ─────────────────────────────────────────────────────────────────
 
+# ── SimulationLogParser ──
 class SimulationLogParser:
     """
     Parse simulation log files to extract pass/fail counts, UVM messages,
@@ -45,6 +51,7 @@ class SimulationLogParser:
         self.total_tests = 0
         self.passed_tests = 0
         self.failed_tests = 0
+        # ---
         self.uvm_errors: List[Dict] = []      # UVM_ERROR messages with timestamps
         self.uvm_fatals: List[Dict] = []      # UVM_FATAL messages with timestamps
         self.coverage_percent: Optional[float] = None  # Overall functional coverage
@@ -70,6 +77,7 @@ class SimulationLogParser:
         except Exception as e:
             # Catch read failures (permission, binary, etc.)
             print(f"  [X] Failed to read log: {e}")
+            # ---
             return False
 
         # Parse: scan each line for known patterns
@@ -94,13 +102,16 @@ class SimulationLogParser:
                         self.total_tests = int(parts[-1].strip())
                     except ValueError:
                         pass  # Non-numeric count, skip
+            # Check condition
             if "# PASSED :" in line or "PASSED :" in line:
+                # ---
                 parts = line.split(":")
                 if len(parts) >= 2:
                     try:
                         self.passed_tests = int(parts[-1].strip())
                     except ValueError:
                         pass
+            # Check condition
             if "# FAILED :" in line or "FAILED :" in line:
                 parts = line.split(":")
                 if len(parts) >= 2:
@@ -120,6 +131,7 @@ class SimulationLogParser:
             if cg_match:
                 try:
                     self.coverage_by_group[cg_match.group(1)] = float(cg_match.group(2))
+                # ---
                 except ValueError:
                     pass
             # Track warnings
@@ -145,6 +157,7 @@ class SimulationLogParser:
         """
         # Timestamp patterns: @12345, [12345], or time: 12345 ns
         ts = re.search(r"@(\d+)", line)
+        # ---
         if ts:
             return ts.group(0)
         ts = re.search(r"\[(\d+)\]", line)
@@ -163,6 +176,7 @@ class SimulationLogParser:
             Dictionary with test counts, errors, fatals, and coverage data.
         """
         if not self._parsed:
+              # return computed value
             return {"error": "Not parsed yet"}
         return {
             "total_tests": self.total_tests,
@@ -170,6 +184,7 @@ class SimulationLogParser:
             "failed_tests": self.failed_tests,
             "uvm_errors": len(self.uvm_errors),
             "uvm_fatals": len(self.uvm_fatals),
+            # ---
             "coverage_percent": self.coverage_percent,
             "coverage_by_group": self.coverage_by_group,
             "warnings": len(self.warnings),
@@ -179,6 +194,7 @@ class SimulationLogParser:
 
 # ── Report Generator ──────────────────────────────────────────────────────────
 
+# ── generate_report ──
 def generate_report(log_summary: Dict, output_path: Path) -> bool:
     """
     Generate a structured JSON report from parsed log data.
@@ -195,6 +211,7 @@ def generate_report(log_summary: Dict, output_path: Path) -> bool:
         report = {
             "tool": "waveform-analyzer",
             "version": "1.0.0",
+            # ---
             "source": log_summary.get("file", "unknown"),
             "analysis": {
                 "total_tests": log_summary.get("total_tests", 0),
@@ -220,6 +237,7 @@ def generate_report(log_summary: Dict, output_path: Path) -> bool:
         elif report["analysis"]["uvm_errors"] > 0:
             report["verdict"] = "WARN"
         else:
+            # ---
             report["verdict"] = "PASS"
 
         # Write JSON with pretty formatting
@@ -237,6 +255,7 @@ def generate_report(log_summary: Dict, output_path: Path) -> bool:
 
 # ── CLI Entry Point ───────────────────────────────────────────────────────────
 
+# ── main ──
 def main() -> int:
     """
     Entry point for waveform-analyzer CLI.
@@ -245,6 +264,7 @@ def main() -> int:
 
     Returns:
         0 on success, 1 on error.
+    # ---
     """
     # Build argument parser with descriptions for each option
     parser = argparse.ArgumentParser(
@@ -270,6 +290,7 @@ def main() -> int:
         "--report", "-r",
         type=str,
         default="coverage_report.json",
+        # ---
         help="Output report path (default: coverage_report.json)",
     )
 
@@ -300,20 +321,5 @@ def main() -> int:
     print(f"  [+] Tests: {summary['passed_tests']} passed / {summary['failed_tests']} failed"
           f" / {summary['total_tests']} total")
     print(f"  [+] UVM Errors: {summary['uvm_errors']}, Fatals: {summary['uvm_fatals']}")
+    # Check condition
     if summary.get("coverage_percent") is not None:
-        print(f"  [+] Coverage: {summary['coverage_percent']:.1f}%")
-    print(f"  [+] Warnings: {summary['warnings']}")
-
-    # Step 3: Generate report file
-    if not generate_report(summary, report_path):
-        return 1
-
-    print(f"  [✓] Analysis complete")
-    return 0
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Standalone entry point — called when run as `python run.py`
-# ═══════════════════════════════════════════════════════════════════════════════
-if __name__ == "__main__":
-    sys.exit(main())

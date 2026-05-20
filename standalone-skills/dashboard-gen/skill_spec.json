@@ -1,0 +1,71 @@
+{
+  "name": "dashboard-gen",
+  "version": "1.0.0",
+  "quality_score": 75.9,
+  "description": "Interactive HTML dashboard generator from coverage gauges, test result tables, regression trends, and heatmaps.",
+  "inputs": {
+    "--module": {
+      "type": "string",
+      "required": true,
+      "description": "DUT module name"
+    },
+    "--output": {
+      "type": "file",
+      "required": true,
+      "description": "Output HTML file path"
+    },
+    "--total": {
+      "type": "int",
+      "required": false,
+      "description": "Total test count"
+    },
+    "--passed": {
+      "type": "int",
+      "required": false,
+      "description": "Passed test count"
+    },
+    "--toggle-cov": {
+      "type": "float",
+      "required": false,
+      "description": "Toggle coverage %"
+    },
+    "--func-cov": {
+      "type": "float",
+      "required": false,
+      "description": "Functional coverage %"
+    }
+  },
+  "outputs": {
+    "result_json": {
+      "path": "result.json"
+    },
+    "report_files": [
+      {
+        "path": "{output}.html",
+        "format": "html",
+        "description": "Self-contained interactive dashboard"
+      }
+    ]
+  },
+  "depends_on": [
+    "coverage-engine",
+    "sim-runner",
+    "regression-manager"
+  ],
+  "config": {},
+  "error_codes": {
+    "1": {
+      "description": "Module name required",
+      "recovery": "Provide --module argument"
+    }
+  },
+  "tags": [
+    "dashboard",
+    "visualization",
+    "reporting"
+  ],
+  "lifecycle": {
+    "status": "stable",
+    "last_reviewed": "2026-05-20"
+  }
+}

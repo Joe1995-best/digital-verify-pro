@@ -1,0 +1,54 @@
+{
+  "name": "feature-decomposer",
+  "version": "1.0.0",
+  "quality_score": 76.4,
+  "description": "Feature-driven testpoint decomposition: decomposes spec features into verification testpoints with stimulus, checking, and coverage goals.",
+  "inputs": {
+    "--spec": {
+      "type": "file",
+      "required": true,
+      "description": "Path to spec YAML"
+    },
+    "--out": {
+      "type": "dir",
+      "required": false,
+      "description": "Output directory"
+    }
+  },
+  "outputs": {
+    "result_json": {
+      "path": "result.json"
+    },
+    "report_files": [
+      {
+        "path": "verification-plan.md",
+        "format": "md",
+        "description": "Per-feature testpoint tables"
+      },
+      {
+        "path": "testpoint_plan.json",
+        "format": "json",
+        "description": "Machine-readable testpoints"
+      }
+    ]
+  },
+  "depends_on": [
+    "spec-analyzer"
+  ],
+  "config": {},
+  "error_codes": {
+    "2": {
+      "description": "Spec parse error",
+      "recovery": "Check features section in spec YAML"
+    }
+  },
+  "tags": [
+    "planning",
+    "testpoint",
+    "decomposition"
+  ],
+  "lifecycle": {
+    "status": "stable",
+    "last_reviewed": "2026-05-20"
+  }
+}

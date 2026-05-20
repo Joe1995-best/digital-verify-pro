@@ -2,3 +2,4 @@
 #
 # No third-party dependencies — pure Python standard library.
 # Tested on Python 3.10+ (including 3.14)
+

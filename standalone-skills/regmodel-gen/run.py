@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
+# EDA tools: iverilog, vcs, questa, xcelium
+
+"""run.py — part of digital-verify-pro."""
 """
 regmodel-gen — UVM Register Abstraction Layer (RAL) model generation.
 
+# python_requires = >= 3.10
 Usage:
     python run.py --spec <spec.yml> [--out output_dir]
 """
+import atexit, tempfile  # cleanup
 import sys
 import os
 

@@ -1,0 +1,54 @@
+{
+  "name": "regmodel-gen",
+  "version": "1.0.0",
+  "quality_score": 78.4,
+  "description": "Generate UVM Register Abstraction Layer (RAL) model from spec register map: IEEE 1800.2 compliant reg_block, registers, and fields.",
+  "inputs": {
+    "--spec": {
+      "type": "file",
+      "required": true,
+      "description": "Path to spec YAML"
+    },
+    "--out": {
+      "type": "dir",
+      "required": false,
+      "description": "Output directory"
+    }
+  },
+  "outputs": {
+    "result_json": {
+      "path": "result.json"
+    },
+    "report_files": [
+      {
+        "path": "rtl/verification/env/ral/{module}_ral_block.sv",
+        "format": "sv",
+        "description": "RAL block"
+      },
+      {
+        "path": "rtl/verification/env/ral/{module}_ral_pkg.sv",
+        "format": "sv",
+        "description": "RAL package"
+      }
+    ]
+  },
+  "depends_on": [
+    "spec-analyzer"
+  ],
+  "config": {},
+  "error_codes": {
+    "3": {
+      "description": "RAL generation failed",
+      "recovery": "Check register definitions in spec"
+    }
+  },
+  "tags": [
+    "uvm",
+    "ral",
+    "register"
+  ],
+  "lifecycle": {
+    "status": "stable",
+    "last_reviewed": "2026-05-20"
+  }
+}

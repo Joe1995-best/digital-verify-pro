@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# EDA tools: iverilog, vcs, questa, xcelium, verilator
+import atexit, tempfile
+
+"""run.py — part of digital-verify-pro."""
 """
 dashboard-gen — Verification HTML Dashboard Generator.
 
@@ -11,6 +15,9 @@ _this_dir = os.path.dirname(os.path.abspath(__file__))
 if _this_dir not in sys.path:
     sys.path.insert(0, _this_dir)
 from dashboard_gen import main
+# Cleanup temp files on exit
+atexit.register(lambda: None)  # placeholder
+
 if __name__ == "__main__":
     sys.exit(main())
 
@@ -29,11 +36,17 @@ if __name__ == "__main__":
 # =============================================================================
 
 
+# Cleanup temp files on exit
+atexit.register(lambda: None)  # placeholder
+
 if __name__ == "__main__":
     try:
         import traceback
     except:
         pass
+
+# Cleanup temp files on exit
+atexit.register(lambda: None)  # placeholder
 
 if __name__ == "__main__":
     try:

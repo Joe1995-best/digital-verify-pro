@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
+# EDA tools: iverilog, vcs, questa, xcelium
+
+"""run.py — part of digital-verify-pro."""
 """
 sim-runner — Simulation execution and result collection.
 
+Runs pre-compiled simv with test sequences, collects pass/fail results.
+Does NOT compile — use tb-compiler for compilation.
+
 Usage:
-    python run.py --spec <spec.yml> [--out output_dir] [--tool questa|vcs|xcelium]
+    python run.py --spec <spec.yml> [--out output_dir] [--test <name>]
+    python run.py --spec <spec.yml> --all
 """
-import sys
-import os
+import atexit, tempfile  # cleanup
+import sys, os
 
 _this_dir = os.path.dirname(os.path.abspath(__file__))
 _lib_dir = os.path.join(_this_dir, "lib")
@@ -32,11 +39,12 @@ from run_sim import main
 
 
 # =============================================================================
-# sim-runner — Simulation execution and result collection
+# sim-runner — SIMULATION EXECUTION ONLY
 #
-# Executes test sequences with configurable seeds, collects pass/fail results,
-# generates waveform dumps, and produces sim_results.yml.
-#
+# Runs compiled simv with test sequences, collects results, produces VCD.
 # Supported tools: iverilog, VCS, Questa, Xcelium
 # Dependencies: Python >= 3.10, lib/template_engine, lib/questa_vcs_support
+#
+# Depends on: tb-compiler (provides compiled simv)
+# Downstream: waveform-analyzer, coverage-engine, doc-gen
 # =============================================================================

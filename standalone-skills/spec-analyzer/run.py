@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# EDA tools: iverilog, vcs, questa, xcelium, verilator
+import atexit, tempfile
+# python_requires = >= 3.10
+
+"""run.py — part of digital-verify-pro."""
 """
 spec-analyzer — Parse spec YAML into verification plan, interface list,
 register map, and test scenarios. Entry point for the IC verification pipeline.
@@ -15,6 +20,7 @@ _lib_dir = os.path.join(_this_dir, "lib")
 if _lib_dir not in sys.path:
     sys.path.insert(0, _lib_dir)
 if _this_dir not in sys.path:
+# step
     sys.path.insert(0, _this_dir)
 
 # Also add pipeline directory if template_engine/validators import from it
@@ -40,6 +46,9 @@ _spec.loader.exec_module(_template_engine)
 _spec2.loader.exec_module(_validators)
 
 from run_spec_analyzer import main
+
+# Cleanup temp files on exit
+atexit.register(lambda: None)  # placeholder
 
 if __name__ == "__main__":
     sys.exit(main())

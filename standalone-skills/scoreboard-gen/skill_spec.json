@@ -1,0 +1,60 @@
+{
+  "name": "scoreboard-gen",
+  "version": "2.0.0",
+  "quality_score": 79.4,
+  "description": "UVM scoreboard and checker generator with TLM analysis ports, predictor, comparator, and coverage collection.",
+  "inputs": {
+    "--spec": {
+      "type": "file",
+      "required": true,
+      "description": "Path to spec YAML"
+    },
+    "--out": {
+      "type": "dir",
+      "required": false,
+      "description": "Output directory"
+    }
+  },
+  "outputs": {
+    "result_json": {
+      "path": "result.json"
+    },
+    "report_files": [
+      {
+        "path": "rtl/verification/env/sb.sv",
+        "format": "sv",
+        "description": "Main scoreboard"
+      },
+      {
+        "path": "rtl/verification/env/sb_predictor.sv",
+        "format": "sv",
+        "description": "Predictor"
+      },
+      {
+        "path": "rtl/verification/env/sb_coverage.sv",
+        "format": "sv",
+        "description": "Coverage collector"
+      }
+    ]
+  },
+  "depends_on": [
+    "spec-analyzer",
+    "env-builder"
+  ],
+  "config": {},
+  "error_codes": {
+    "3": {
+      "description": "Scoreboard generation failed",
+      "recovery": "Check register map and interface definitions"
+    }
+  },
+  "tags": [
+    "uvm",
+    "scoreboard",
+    "checker"
+  ],
+  "lifecycle": {
+    "status": "stable",
+    "last_reviewed": "2026-05-20"
+  }
+}
