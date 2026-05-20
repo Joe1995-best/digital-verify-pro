@@ -1,3 +1,4 @@
+import pytest
 
 """
 Regression tests for coverage-engine -- deterministic results.
@@ -9,7 +10,7 @@ FIXTURES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures")
 def test_deterministic_coverage():
     vcd = os.path.join(FIXTURES, "minimal.vcd")
     if not os.path.isfile(vcd):
-        return
+        pytest.skip("fixture not found")
     results = []
     for _ in range(2):
         with tempfile.TemporaryDirectory() as tmp:

@@ -1,3 +1,4 @@
+import pytest
 
 """Integration tests for coverage-engine -- validate result.json + coverage_report."""
 import sys, os, json, subprocess, tempfile
@@ -7,7 +8,7 @@ FIXTURES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures")
 def test_minimal_vcd_produces_valid_result():
     vcd = os.path.join(FIXTURES, "minimal.vcd")
     if not os.path.isfile(vcd):
-        return
+        pytest.skip("fixture not found")
     with tempfile.TemporaryDirectory() as tmp:
         r = subprocess.run(
             [sys.executable, "run.py", "--vcd", vcd, "--out", tmp, "--result", os.path.join(tmp, "result.json")],
@@ -27,7 +28,7 @@ def test_minimal_vcd_produces_valid_result():
 def test_output_files_exist():
     vcd = os.path.join(FIXTURES, "minimal.vcd")
     if not os.path.isfile(vcd):
-        return
+        pytest.skip("fixture not found")
     with tempfile.TemporaryDirectory() as tmp:
         subprocess.run(
             [sys.executable, "run.py", "--vcd", vcd, "--out", tmp],

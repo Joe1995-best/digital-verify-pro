@@ -35,3 +35,12 @@ def test_empty_vcd_graceful():
             pass
     finally:
         os.unlink(tmp)
+
+def test_analyze_signal_real_engine():
+    """Use real ToggleAnalyzer to verify stuck detection."""
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from coverage_engine import ToggleAnalyzer
+    analyzer = ToggleAnalyzer()
+    result = analyzer.analyze_signal("test_sig", width=1, values=[1, 1, 1, 1])
+    assert result.transitions == 0, "Expected 0 transitions"
+    assert result.is_stuck == True, "Constant signal should be stuck"

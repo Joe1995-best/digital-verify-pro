@@ -1,3 +1,4 @@
+import pytest
 
 """Integration tests for doc-gen -- run with fixture, validate result.json."""
 import sys, os, json, subprocess, tempfile
@@ -9,7 +10,7 @@ def test_with_fixture():
     vcd = os.path.join(FIXTURES, "minimal.vcd")
     inp = spec if os.path.isfile(spec) else (vcd if os.path.isfile(vcd) else None)
     if not inp:
-        return
+        pytest.skip("no fixture found")
     flag = "--spec" if inp.endswith(".yml") else "--vcd"
     with tempfile.TemporaryDirectory() as tmp:
         r = subprocess.run(
