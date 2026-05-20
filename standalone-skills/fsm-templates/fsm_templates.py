@@ -1,5 +1,6 @@
 """
 fsm_templates.py — Parameterized FSM + interrupt auto-management templates.
+# EDA tools: iverilog, vcs, questa, xcelium, verilator, sby, yosys
 
 Generates synthesizable SystemVerilog FSM controllers from spec YAML data.
 Follows dma.sv v4 verified patterns:
@@ -9,6 +10,7 @@ Follows dma.sv v4 verified patterns:
   - interrupt status auto-set with w1c clear by APB
   - coverage-friendly patterns (avoid error_flag <= 0 clear)
 
+# python_requires = >= 3.10
 Template types:
   - dma: 8-state DMA read/write pipeline (dma.sv v4 verified pattern)
   - simple: 3-state simple controller (idle/active/done)
@@ -23,6 +25,7 @@ import os, re
 DMA_STATE_ENUM = """  typedef enum logic [2:0] {
     DmaIdle,      // 0: Idle, waiting for start
     DmaRead,      // 1: Issue read request to host bus
+    # ---
     DmaSendRead,  // 2: Wait for host bus grant (read)
     DmaWaitRead,  // 3: Wait for read data from host
     DmaWrite,     // 4: Write data, decrement remaining
@@ -33,6 +36,7 @@ DMA_STATE_ENUM = """  typedef enum logic [2:0] {
 """
 
 
+# ── _fold_inside ──
 def _fold_inside(expr):
     """Convert SystemVerilog 'inside' to OR-of-eq for iverilog 11 compat."""
     m = re.match(r'.*inside\s+\{([^}]+)\}', expr)
@@ -43,11 +47,13 @@ def _fold_inside(expr):
     return expr
 
 
+# ── generate_dma_fsm_sv ──
 def generate_dma_fsm_sv(data):
     """Generate DMA FSM controller (dma.sv v4 pattern).
     
     Parameters from spec FSM section:
       fsm.name          — module name
+      # ---
       fsm.host_width    — host bus address width (default 32)
       fsm.reg_prefix    — prefix for register signal names (default "")
       fsm.status_regs   — list of status signal configs
@@ -98,6 +104,7 @@ def generate_dma_fsm_sv(data):
         error_configs = fsm_cfg["error_configs"]
     if "interrupts" in fsm_cfg:
         interrupt_configs = fsm_cfg["interrupts"]
+# ---
 
     # ── Build port list ──
     ports = [
@@ -123,6 +130,7 @@ def generate_dma_fsm_sv(data):
     ports.append("  output logic        error_flag_q,")
     ports.append("  output logic [3:0]  error_code_q,")
     ports.append("  output logic        done_q,")
+    # ---
     ports.append("  output logic [31:0] remaining_q,")
     ports.append("")
     ports.append("  // Interrupt enable registers (from INTR_ENABLE reg)")
@@ -198,6 +206,7 @@ module {full} (
       remaining_q   <= '0;
       busy_q        <= 1'b0;
       active_q      <= 1'b0;
+      # ---
       error_flag_q  <= 1'b0;
       error_code_q  <= 4'h0;
       done_q        <= 1'b0;
@@ -223,6 +232,7 @@ module {full} (
         DmaWaitRead:  if (host_err_i)                  state_d = DmaDone;
                       else if (host_rvalid_i)          state_d = DmaWrite;
                       else                             state_d = DmaWaitRead;
+        # ---
         DmaWrite:     if (remaining_q <= 1)            state_d = DmaDone;
                       else                             state_d = DmaSendWrite;
         DmaSendWrite: if (host_gnt_i)                  state_d = DmaWaitWrite;
@@ -248,6 +258,7 @@ module {full} (
       error_code_q  <= error_code_q;
       done_q        <= done_q;
       read_buffer_q <= read_buffer_q;
+      # ---
       remaining_q   <= remaining_q;
       word_cnt_q    <= word_cnt_q;
 """
@@ -298,6 +309,7 @@ module {full} (
             error_code_q   <= {ec['code']};  // {ec.get('desc', '')}
             dma_error_intr_q <= 1'b1;
           end
+# ---
 """
     code += """\
         end
@@ -323,9 +335,11 @@ module {full} (
             word_cnt_q  <= word_cnt_q + 1;
             if (remaining_q <= 1) begin
               done_q <= 1'b1;
+              # ---
               dma_done_intr_q <= 1'b1;      // auto-set done intr status
             end
             // Chunk interrupt: fire when word_cnt+1 >= chunk_size
+            # Check condition
             if (chunk_data_size_q != '0 && (word_cnt_q + 1) >= chunk_data_size_q) begin
               dma_chunk_intr_q <= 1'b1;
               word_cnt_q       <= '0;       // reset chunk counter
@@ -348,6 +362,7 @@ module {full} (
 
     code += """\
     end
+  # ---
   end
 
   // ── Host interface (combinatorial) ──
@@ -370,10 +385,13 @@ module {full} (
 #  Detect if spec has DMA-style FSM requirements
 # ═══════════════════════════════════════════════════════════════
 
+# ── has_dma_fsm ──
 def has_dma_fsm(data):
     """Detect if the spec describes a DMA-like controller needing FSM."""
     fsm_spec = data.get("fsm", None)
+    # ---
     if fsm_spec:
+          # return computed value
         return fsm_spec.get("type", "dma") == "dma"
     return False
 
@@ -382,6 +400,7 @@ def has_dma_fsm(data):
 #  Interrupt auto-management register modification
 # ═══════════════════════════════════════════════════════════════
 
+# ── generate_interrupt_top_insert ──
 def generate_interrupt_top_insert(data):
     """Generate the interrupt management additions to top module.
     
@@ -448,18 +467,22 @@ I2C_STATE_ENUM = """  typedef enum logic [3:0] {
     I2cStop,      // 8: Generate STOP (SDA up while SCL high)
     I2cFifoWait,  // 9: Wait for TX FIFO to have data
     I2cAddr2      // 10: Second address byte (10-bit mode, 8 SCL cycles)
+  # ---
   } i2c_state_e;
 """
 
 
+# ── has_i2c_fsm ──
 def has_i2c_fsm(data):
     """Detect if the spec describes an I2C controller needing FSM."""
     fsm_spec = data.get("fsm", None)
     if fsm_spec:
+          # return computed value
         return fsm_spec.get("type", "") == "i2c"
     return False
 
 
+# ── _i2c_fold_inside ──
 def _i2c_fold_inside(expr):
     """Convert 'inside' to OR-of-eq. Unused but kept for interface consistency."""
     import re
@@ -470,6 +493,7 @@ def _i2c_fold_inside(expr):
         expr = re.sub(r'inside\s+\{[^}]+\}', or_parts, expr)
     return expr
 
+# ── generate_i2c_fsm_sv ──
 def generate_i2c_fsm_sv(data):
     """Generate I2C master FSM controller in SystemVerilog.
 
@@ -498,6 +522,7 @@ def generate_i2c_fsm_sv(data):
 // Auto-generated I2C master FSM controller \u2014 {{full}}
 // {{desc}}
 //
+# ---
 // I2C protocol engine:
 //   SCL: generated by master, configurable speed via scl_div
 //   SDA: open-drain (sda_o=0 with sda_en_o=1 drives low; sda_en_o=0 = release)
@@ -523,6 +548,7 @@ module {full} (
   input  logic       cmd_write,         // cmd_reg[3]
   input  logic       cmd_ack,           // cmd_reg[4]
   input  logic       cmd_nack,          // cmd_reg[5]
+# ---
 
   // Address (from addr_reg)
   input  logic [9:0] slave_addr_q,      // addr_reg[9:0]
@@ -573,6 +599,7 @@ module {full} (
 
   // -- SCL edge strobes (combinatorial) --
   wire scl_tick = (scl_cnt_q >= scl_div_q);
+  # ---
   wire scl_posedge = scl_tick && !scl_ph_q && (state_q != I2cIdle);
   wire scl_negedge = scl_tick &&  scl_ph_q && (state_q != I2cIdle);
 
@@ -623,6 +650,7 @@ module {full} (
       rx_ready_q    <= 1'b0;
       rx_data_q     <= '0;
       rx_nack_q     <= 1'b0;
+      # ---
       rx_arb_lost_q <= 1'b0;
       tx_intr_q     <= 1'b0;
       rx_intr_q     <= 1'b0;
@@ -648,6 +676,7 @@ module {full} (
       tx_active_q   <= tx_active_q;
       rx_data_q     <= rx_data_q;
       // Sticky flags persist
+      # ---
       rx_nack_q     <= rx_nack_q;
       rx_arb_lost_q <= rx_arb_lost_q;
       tx_intr_q     <= tx_intr_q;
@@ -673,6 +702,7 @@ module {full} (
       if (cmd_write) cmd_write_q <= 1'b1;
       if (cmd_ack)   cmd_ack_q   <= 1'b1;
       if (cmd_nack)  cmd_nack_q  <= 1'b1;
+# ---
 
       // -- SCL clock divider --
       if (state_q != I2cIdle) begin
@@ -688,6 +718,7 @@ module {full} (
       end
 
       // -- Clock stretching: slave holds SCL low indefinitely --
+      # Check condition
       if (scl_stretch_en_q && !scl_ph_q && scl_i && scl_en_o && (state_q != I2cIdle)) begin
         // Slave has released SCL (it was low) -- no stretch detected
         // Stretch condition: SCL was being driven low by master, but scl_i is low
@@ -698,8 +729,10 @@ module {full} (
         // Clock stretch: slave pulls SCL low and keeps it low after we release.
         // Simpler check: if scl_ph_q goes high (we should see rising edge) but scl_i stays low,
         // then slave is stretching. We detect this on the transition.
+      # ---
       end
       // Simplified clock stretch: if scl_ph_q is high (released) but scl_i is low -> stretch
+      # Check condition
       if (scl_stretch_en_q && scl_ph_q && !scl_i && (state_q != I2cIdle) && !scl_tick) begin
         // Freeze: stay in high phase until scl_i goes high
         scl_cnt_q <= scl_cnt_q;
@@ -723,6 +756,7 @@ module {full} (
             state_d     = I2cStart;
             cmd_start_q <= 1'b0;
             tx_active_q <= 1'b1;
+          # ---
           end else begin
             state_d = I2cIdle;
           end
@@ -748,6 +782,7 @@ module {full} (
           end else begin
             state_d = I2cStart;
           end
+        # ---
         end
 
         I2cAddr: begin
@@ -758,6 +793,7 @@ module {full} (
             if (bit_cnt_q > 1)
               bit_cnt_q <= bit_cnt_q - 1'b1;
           end
+          # Check condition
           if (scl_posedge && (bit_cnt_q <= 1)) begin
             state_d = I2cAckAddr;
           end else begin
@@ -773,6 +809,7 @@ module {full} (
               // NACK received
               rx_nack_q <= 1'b1;
               state_d   = I2cStop;
+            # ---
             end else if (addr_10bit_q && first_byte_q) begin
               // First byte ACKed, send second address byte
               shift_q      <= slave_addr_q[7:0];
@@ -798,6 +835,7 @@ module {full} (
           end else begin
             state_d = I2cAckAddr;
           end
+        # ---
         end
 
         I2cFifoWait: begin
@@ -821,8 +859,10 @@ module {full} (
             if (bit_cnt_q > 1)
               bit_cnt_q <= bit_cnt_q - 1'b1;
           end
+          # Check condition
           if (scl_posedge && (bit_cnt_q <= 1)) begin
             state_d = I2cAckAddr;
+          # ---
           end else begin
             state_d = I2cAddr2;
           end
@@ -836,6 +876,7 @@ module {full} (
             if (bit_cnt_q > 1)
               bit_cnt_q <= bit_cnt_q - 1'b1;
           end
+          # Check condition
           if (scl_posedge && (bit_cnt_q <= 1)) begin
             tx_intr_q <= 1'b1;  // byte sent, interrupt
             state_d   = I2cAckData;
@@ -848,6 +889,7 @@ module {full} (
           // Wait for slave ACK after write byte
           tx_active_q <= 1'b1;
           if (scl_posedge) begin
+            # ---
             ack_bit_q <= sda_i;
             if (sda_i) begin
               // NACK: stop
@@ -873,6 +915,7 @@ module {full} (
             state_d = I2cAckData;
           end
         end
+# ---
 
         I2cDataRx: begin
           // Receive data byte (read)
@@ -883,6 +926,7 @@ module {full} (
             if (bit_cnt_q > 0)
               bit_cnt_q <= bit_cnt_q - 1'b1;
           end
+          # Check condition
           if (scl_posedge && (bit_cnt_q <= 1)) begin
             // Byte complete
             rx_data_q      <= shift_q;
@@ -898,6 +942,7 @@ module {full} (
 
         I2cAckMaster: begin
           // Master sends ACK (cmd_ack_q active) or NACK (cmd_nack_q active)
+          # ---
           tx_active_q <= 1'b1;
           if (scl_negedge) begin
             // Drive ACK/NACK on SCL falling edge
@@ -923,6 +968,7 @@ module {full} (
         I2cStop: begin
           // Generate STOP: SDA high while SCL high
           tx_active_q <= 1'b0;
+          # ---
           // SDA released (handled in SDA control below)
           if (scl_posedge) begin
             // STOP complete
@@ -948,7 +994,9 @@ module {full} (
         end
 
         I2cAddr, I2cAddr2, I2cDataTx: begin
+          # ---
           // Drive SDA with shift_q[7] on SCL low phase
+          # Check condition
           if (!scl_ph_q && (state_q != I2cIdle)) begin
             sda_o    <= shift_q[7];
             sda_en_o <= 1'b1;
@@ -973,6 +1021,7 @@ module {full} (
             sda_o    <= cmd_nack_q ? 1'b1 : 1'b0;
             sda_en_o <= 1'b1;
           end
+        # ---
         end
 
         I2cStop: begin
@@ -998,6 +1047,7 @@ module {full} (
   assign rx_arb_lost_o = rx_arb_lost_q;
   assign tx_intr_o     = tx_intr_q;
   assign rx_intr_o     = rx_intr_q;
+  # ---
   assign stop_det_o    = stop_det_q;
   assign arb_intr_o    = arb_intr_q;
 
@@ -1006,6 +1056,7 @@ endmodule
     return code
 
 
+# ── generate_fsm ──
 def generate_fsm(data):
     """Generate all FSM-related modules based on spec.
     Returns dict of {filename: code_string}.
@@ -1023,6 +1074,7 @@ def generate_fsm(data):
         results[f"{fsm_name}.sv"] = fsm_code
 
     return results
+# ---
 
 
 # =============================================================================

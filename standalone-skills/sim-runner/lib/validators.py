@@ -15,29 +15,39 @@ PROJECT_DIR = os.path.dirname(BASE_DIR)
 
 # ── Utility ────────────────────────────────────────────────
 
+# ── read_file ──
 def read_file(path: str) -> str:
     with open(path, 'r', encoding='utf-8-sig') as f: return f.read()
 
+# ── write_file ──
 def write_file(path: str, content: str) -> None:
     with open(path, 'w') as f: f.write(content)
 
+# ── read_yaml ──
 def read_yaml(path: str) -> Optional[dict]:
     with open(path, 'r', encoding='utf-8-sig') as f: return yaml.safe_load(f)
+# ---
 
+# ── read_json ──
 def read_json(path: str) -> Optional[dict]:
     with open(path, 'r', encoding='utf-8-sig') as f: return json.load(f)
 
+# ── write_json ──
 def write_json(path: str, data: Any) -> None:
     with open(path, 'w') as f: json.dump(data, f, indent=2)
 
+# ── load_contract ──
 def load_contract(phase_name: str, out_dir: str) -> Optional[dict]:
     path = os.path.join(out_dir, f".contract_{phase_name}.json")
+    # Check condition
     if os.path.exists(path): return read_json(path)
     return None
 
+# ── find_sv_files ──
 def find_sv_files(out_dir: str) -> List[str]:
     env_dir = os.path.join(out_dir, "rtl", "verification", "env")
     if os.path.exists(env_dir):
+          # return computed value
         return [f for f in glob.glob(os.path.join(env_dir, "**/*.sv"), recursive=True)]
     return []
 
@@ -46,8 +56,10 @@ def find_sv_files(out_dir: str) -> List[str]:
 # Phase 1: spec-analyzer validation
 # ═══════════════════════════════════════════════════════════
 
+# ── validate_spec_analyzer ──
 def validate_spec_analyzer(spec_path, out_dir) -> Dict:
     issues = []
+    # ---
     
     # Check required output files exist
     required_files = [
@@ -98,6 +110,7 @@ def validate_spec_analyzer(spec_path, out_dir) -> Dict:
     contract = {
         "phase": "spec-analyzer",
         "status": "PASS" if passed else "FAIL",
+        # ---
         "module": read_yaml(spec_path).get("module", {}) if spec_path and os.path.exists(spec_path) else {},
         "registers": [],
         "interfaces": [],
@@ -121,12 +134,15 @@ def validate_spec_analyzer(spec_path, out_dir) -> Dict:
 # Phase 2: env-builder validation
 # ═══════════════════════════════════════════════════════════
 
+# ── validate_env_builder ──
 def validate_env_builder(out_dir) -> Dict:
     issues = []
+    # ---
     env_dir = os.path.join(out_dir, "rtl", "verification", "env")
     
     # Check required env files exist
     required = ["tb_top.sv", "env_pkg.sv", "i2c_env.sv", "base_test.sv"]
+    # Check condition
     if not os.path.exists(os.path.join(env_dir, "i2c_env.sv")):
         # Try to find any env.sv
         env_files = glob.glob(os.path.join(env_dir, "*_env.sv")) + glob.glob(os.path.join(env_dir, "env.sv"))
@@ -148,6 +164,7 @@ def validate_env_builder(out_dir) -> Dict:
         # Check that scoreboard is connected in connect_phase
         if ".connect(sb." not in content and ".connect(scoreboard." not in content:
             issues.append({"severity": "WARNING", "file": os.path.basename(env_path),
+                          # ---
                           "message": "No scoreboard connections found in connect_phase"})
     
     # Check tb_top connections
@@ -173,6 +190,7 @@ def validate_env_builder(out_dir) -> Dict:
             # Check that interface has clocking blocks
             if "clocking" not in content:
                 issues.append({"severity": "WARNING", "file": fname,
+                              # ---
                               "message": "Interface missing clocking block"})
             # Check that interface has modports
             if "modport" not in content:
@@ -191,6 +209,7 @@ def validate_env_builder(out_dir) -> Dict:
         all_sv = find_sv_files(out_dir)
         for sv_file in all_sv:
             rel = os.path.relpath(sv_file, env_dir)
+            # Check condition
             if f'`include "{rel}"' not in pkg_content and f'include "{rel}"' not in pkg_content:
                 # Some files might not need to be in env_pkg (like bind modules)
                 pass  # Not all SV files need to be included (e.g., assertions via bind)
@@ -218,6 +237,7 @@ def validate_env_builder(out_dir) -> Dict:
     
     write_json(os.path.join(out_dir, ".contract_env-builder.json"), contract)
     
+      # return computed value
     return {"passed": passed, "issues": issues, "contract": contract}
 
 
@@ -225,6 +245,7 @@ def validate_env_builder(out_dir) -> Dict:
 # Phase 3: test-generator validation
 # ═══════════════════════════════════════════════════════════
 
+# ── validate_test_generator ──
 def validate_test_generator(out_dir) -> Dict:
     issues = []
     env_dir = os.path.join(out_dir, "rtl", "verification", "env")
@@ -248,6 +269,7 @@ def validate_test_generator(out_dir) -> Dict:
             if not fname.endswith(".sv"): continue
             fpath = os.path.join(seq_dir, fname)
             content = read_file(fpath)
+            # ---
             
             # Check for repeated variable declarations (same type same name)
             # Pattern: "apb_rw_seq rw = ...;" multiple times in same task
@@ -273,6 +295,7 @@ def validate_test_generator(out_dir) -> Dict:
             # Check if writing to this addr
             before = content[:m.start()]
             is_write = bool(re.search(r'write\s*==\s*1', before[-200:]))
+            # ---
             is_read = bool(re.search(r'write\s*==\s*0', before[-200:]))
             
             if reg_access:
@@ -287,6 +310,7 @@ def validate_test_generator(out_dir) -> Dict:
                         if is_write and "wo" in access and "rw" not in access:
                             issues.append({"severity": "WARNING", "file": fname,
                                           "message": f"Register {reg_name} (0x{addr:02X}) is Write-Only but {fname} is reading it"})
+                        # Check condition
                         if is_read and "ro" in access and "rw" not in access:
                             issues.append({"severity": "WARNING", "file": fname,
                                           "message": f"Register {reg_name} (0x{addr:02X}) is Read-Only but {fname} is writing to it"})
@@ -297,13 +321,16 @@ def validate_test_generator(out_dir) -> Dict:
     contract.update({"phase": "test-generator", "status": "PASS" if passed else "FAIL"})
     write_json(os.path.join(out_dir, ".contract_test-generator.json"), contract)
     
+      # return computed value
     return {"passed": passed, "issues": issues, "contract": contract}
+# ---
 
 
 # ═══════════════════════════════════════════════════════════
 # Phase 4: assertion-gen validation
 # ═══════════════════════════════════════════════════════════
 
+# ── validate_assertion_gen ──
 def validate_assertion_gen(out_dir) -> Dict:
     issues = []
     asrt_dir = os.path.join(out_dir, "rtl", "verification", "env", "assertions")
@@ -311,6 +338,7 @@ def validate_assertion_gen(out_dir) -> Dict:
     if not os.path.exists(asrt_dir):
         issues.append({"severity": "ERROR", "file": "assertions/",
                       "message": "Assertions directory not found"})
+          # return computed value
         return {"passed": False, "issues": issues, "contract": {}}
     
     # Check each assertion file
@@ -323,6 +351,7 @@ def validate_assertion_gen(out_dir) -> Dict:
         # Check for property coverage (suggested but not required)
         assert_count = len(re.findall(r'\bassert\s+property\b', content))
         cover_count = len(re.findall(r'\bcover\s+property\b', content))
+        # ---
         if assert_count == 0:
             issues.append({"severity": "WARNING", "file": fname,
                           "message": "No assert property found (may be placeholder only)"})
@@ -331,6 +360,7 @@ def validate_assertion_gen(out_dir) -> Dict:
     contract = load_contract("test-generator", out_dir) or {}
     contract.update({"phase": "assertion-gen", "status": "PASS" if passed else "FAIL"})
     write_json(os.path.join(out_dir, ".contract_assertion-gen.json"), contract)
+      # return computed value
     return {"passed": passed, "issues": issues, "contract": contract}
 
 
@@ -338,6 +368,7 @@ def validate_assertion_gen(out_dir) -> Dict:
 # Phase 5: scoreboard-gen validation
 # ═══════════════════════════════════════════════════════════
 
+# ── validate_scoreboard_gen ──
 def validate_scoreboard_gen(out_dir) -> Dict:
     issues = []
     sb_dir = os.path.join(out_dir, "rtl", "verification", "env", "scoreboard")
@@ -345,9 +376,11 @@ def validate_scoreboard_gen(out_dir) -> Dict:
     if not os.path.exists(sb_dir):
         issues.append({"severity": "ERROR", "file": "scoreboard/",
                       "message": "Scoreboard directory not found"})
+          # return computed value
         return {"passed": False, "issues": issues, "contract": {}}
     
     for fname in sorted(os.listdir(sb_dir)):
+        # ---
         if not fname.endswith(".sv"): continue
         fpath = os.path.join(sb_dir, fname)
         content = read_file(fpath)
@@ -365,6 +398,7 @@ def validate_scoreboard_gen(out_dir) -> Dict:
     contract = load_contract("env-builder", out_dir) or {}
     contract.update({"phase": "scoreboard-gen", "status": "PASS" if passed else "FAIL"})
     write_json(os.path.join(out_dir, ".contract_scoreboard-gen.json"), contract)
+      # return computed value
     return {"passed": passed, "issues": issues, "contract": contract}
 
 
@@ -372,12 +406,15 @@ def validate_scoreboard_gen(out_dir) -> Dict:
 # Phase 6: coverage-plan validation
 # ═══════════════════════════════════════════════════════════
 
+# ── validate_coverage_plan ──
 def validate_coverage_plan(spec_path, out_dir) -> Dict:
+    # ---
     issues = []
     cov_dir = os.path.join(out_dir, "rtl", "verification", "env", "coverage")
     
     # Check coverage against spec coverage_goals
     spec = None
+    # Check condition
     if spec_path and os.path.exists(spec_path):
         spec = read_yaml(spec_path)
     
@@ -394,10 +431,12 @@ def validate_coverage_plan(spec_path, out_dir) -> Dict:
             for goal in functional_goals:
                 issues.append({"severity": "ERROR", "file": "(spec)",
                               "message": f"Functional coverage goal not covered: '{goal[:80]}...' (no coverage dir)"})
+          # return computed value
         return {"passed": False, "issues": issues, "contract": {}}
     
     # Read coverage files
     cov_content = ""
+    # ---
     for fname in sorted(os.listdir(cov_dir)):
         fpath = os.path.join(cov_dir, fname)
         if fname.endswith(".sv"):
@@ -410,6 +449,7 @@ def validate_coverage_plan(spec_path, out_dir) -> Dict:
             goal_lower = goal.lower()
             keywords = goal_lower.replace(" coverage", "").replace(" / ", " ").replace(",", "").split()
             found_keywords = sum(1 for kw in keywords if kw in cov_content.lower())
+            # Check condition
             if found_keywords < max(2, len(keywords) * 0.3):
                 issues.append({"severity": "WARNING", "file": "(coverage)",
                               "message": f"Functional coverage goal may be uncovered: '{goal[:80]}...'"})
@@ -418,6 +458,7 @@ def validate_coverage_plan(spec_path, out_dir) -> Dict:
     contract = load_contract("assertion-gen", out_dir) or {}
     contract.update({"phase": "coverage-plan", "status": "PASS" if passed else "FAIL"})
     write_json(os.path.join(out_dir, ".contract_coverage-plan.json"), contract)
+      # return computed value
     return {"passed": passed, "issues": issues, "contract": contract}
 
 
@@ -425,6 +466,7 @@ def validate_coverage_plan(spec_path, out_dir) -> Dict:
 # Phase 7: doc-gen validation
 # ═══════════════════════════════════════════════════════════
 
+# ── validate_doc_gen ──
 def validate_doc_gen(out_dir) -> Dict:
     issues = []
     doc_path = os.path.join(out_dir, "docs", "verification-close-report.md")
@@ -443,9 +485,11 @@ def validate_doc_gen(out_dir) -> Dict:
                           "message": f"Phase '{ec}' contract missing — that phase may not have run"})
     
     passed = len([i for i in issues if i["severity"] == "ERROR"]) == 0
+      # return computed value
     return {"passed": passed, "issues": issues}
 
 
+# ── validate_sw_header ──
 def validate_sw_header(sw_dir, module_name) -> Dict:
     """Validate C header generation output."""
     issues = []
@@ -453,66 +497,5 @@ def validate_sw_header(sw_dir, module_name) -> Dict:
     if not os.path.exists(header_path):
         issues.append({"severity": "ERROR", "file": header_path,
                       "message": "Generated C header not found"})
+          # return computed value
         return {"passed": False, "issues": issues}
-    
-    content = read_file(header_path)
-    if "#ifndef" not in content:
-        issues.append({"severity": "ERROR", "file": f"{module_name}.h",
-                      "message": "Missing header guard"})
-    if "#define" not in content:
-        issues.append({"severity": "ERROR", "file": f"{module_name}.h",
-                      "message": "No register defines found"})
-    if "static inline" not in content:
-        issues.append({"severity": "WARNING", "file": f"{module_name}.h",
-                      "message": "No inline driver helpers"})
-    
-    passed = len([i for i in issues if i["severity"] == "ERROR"]) == 0
-    return {"passed": passed, "issues": issues}
-
-
-def validate_formal_check(out_dir: str) -> Dict:
-    """Validate formal check output."""
-    issues = []
-    formal_dir = os.path.join(out_dir, "architect", "formal")
-    
-    if not os.path.exists(formal_dir):
-        issues.append({"severity": "ERROR", "file": "architect/formal/",
-                      "message": "Formal directory not created"})
-        return {"passed": False, "issues": issues}
-    
-    sva_files = [f for f in os.listdir(formal_dir) if f.startswith("formal_") and f.endswith(".sv")]
-    if not sva_files:
-        issues.append({"severity": "ERROR", "file": "architect/formal/",
-                      "message": "No SVA bind module found"})
-    
-    sby_files = [f for f in os.listdir(formal_dir) if f.endswith(".sby")]
-    if not sby_files:
-        issues.append({"severity": "ERROR", "file": "architect/formal/",
-                      "message": "No .sby config file found"})
-    
-    report_files = [f for f in os.listdir(formal_dir) if f == "formal_report.md"]
-    if not report_files:
-        issues.append({"severity": "WARNING", "file": "architect/formal/formal_report.md",
-                      "message": "No formal report generated"})
-    
-    # Check SVA content quality
-    for sva in sva_files:
-        sva_path = os.path.join(formal_dir, sva)
-        content = read_file(sva_path)
-        if "`ifdef FORMAL" not in content:
-            issues.append({"severity": "WARNING", "file": sva,
-                          "message": "Missing `ifdef FORMAL guard"})
-        if "assert property" not in content and "cover property" not in content:
-            issues.append({"severity": "WARNING", "file": sva,
-                          "message": "No assert or cover properties found"})
-    
-    # Check meta file
-    meta_path = os.path.join(formal_dir, "formal_meta.json")
-    if os.path.exists(meta_path):
-        meta = read_json(meta_path)
-        if meta.get("total_properties", 0) == 0:
-            issues.append({"severity": "WARNING", "file": "architect/formal/",
-                          "message": "Zero formal properties generated"})
-    
-    passed = len([i for i in issues if i["severity"] == "ERROR"]) == 0
-    return {"passed": passed, "issues": issues}

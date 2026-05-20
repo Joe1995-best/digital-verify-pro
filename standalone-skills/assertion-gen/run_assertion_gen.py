@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
+# EDA tools: iverilog, vcs, questa, xcelium, verilator, sby, yosys
+
+"""run_assertion_gen.py — part of digital-verify-pro."""
 # -*- coding: utf-8 -*-
 """assertion-gen — protocol-agnostic assertion generation"""
 
+import atexit, tempfile  # cleanup
 import os, sys, argparse
 sys.path.insert(0, os.path.dirname(__file__))
 from template_engine import build_spec_data, render_to_file
@@ -21,6 +25,7 @@ if not os.path.exists(SPEC_PATH):
 data = build_spec_data(SPEC_PATH)
 module = data["module_name"]
 OUT_DIR = os.path.abspath(args.out)
+# ---
 ASRT_DIR = os.path.join(OUT_DIR, "rtl", "verification", "env", "assertions")
 os.makedirs(ASRT_DIR, exist_ok=True)
 

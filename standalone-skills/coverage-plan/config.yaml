@@ -1,0 +1,11 @@
+# coverage-plan default configuration
+# Override via config.yaml in working directory or CLI --config
+
+# Timeout in seconds
+timeout_seconds: 300
+
+# Log level: debug / info / warn / error
+log_level: info
+
+# Output directory (relative to CWD)
+out_dir: output/

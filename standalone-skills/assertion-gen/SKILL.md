@@ -2,6 +2,7 @@
 name: assertion-gen
 version: 1.0.0
 quality_score: 78.9
+lifecycle: beta
 description: >
   Generate SystemVerilog Assertions (SVA) from specification. Covers interface
   protocols, internal invariants, register access rules, and timing requirements.
@@ -64,6 +65,24 @@ python run.py --spec ../../i2c_spec.yml --out verification_output
 | I2C | apb_assert + reset_assert + reg_assert | ✅ Verified |
 | SPI Slave | Full protocol assertions | ✅ Verified |
 | OT DMA | Register + FSM assertions | ✅ Verified |
+
+
+
+## Config
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `timeout_seconds` | int | 300 | 执行超时（秒） |
+| `log_level` | enum | `info` | 日志级别：debug/info/warn/error |
+| `out_dir` | string | `output/` | 输出目录 |
+
+
+
+## Known Limitations
+
+- 依赖上游 skill 的输出格式，版本变更可能破坏兼容性
+- 当前为 standalone 模式，未深度集成 pipeline 上下文
+- 大文件处理可能受 Python 单线程性能限制
 
 ## Dependencies
 

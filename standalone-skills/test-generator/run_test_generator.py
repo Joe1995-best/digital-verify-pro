@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# EDA tools: iverilog, vcs, questa, xcelium, verilator, sby, yosys
+
+"""run_test_generator.py — part of digital-verify-pro."""
 # -*- coding: utf-8 -*-
 """
 test-generator v2 — protocol-aware, category-dispatched test sequence generator.
@@ -11,6 +14,7 @@ Major upgrade:
 - Every sequence includes self-checking assertions and coverage sampling
 """
 
+import atexit, tempfile  # cleanup
 import os, sys, json, argparse, re
 from collections import defaultdict
 
@@ -21,6 +25,7 @@ from template_engine import build_spec_data
 parser = argparse.ArgumentParser(description="Test Generator v2 — protocol-aware sequences")
 parser.add_argument("--spec", default="")
 parser.add_argument("--out", default=os.path.join(BASE_DIR, "..", "output"))
+# ---
 parser.add_argument("--gaps", default="", help="Coverage gaps JSON path (drives targeted test generation)")
 args = parser.parse_args()
 
@@ -46,6 +51,7 @@ ENV_DIR = os.path.join(OUT_DIR, "rtl", "verification", "env")
 SEQ_DIR = os.path.join(ENV_DIR, "sequences")
 TST_DIR = os.path.join(ENV_DIR, "tests")
 os.makedirs(SEQ_DIR, exist_ok=True)
+# ---
 os.makedirs(TST_DIR, exist_ok=True)
 
 DATE = data.get("date", "Unknown")
@@ -71,6 +77,7 @@ if os.path.exists(COV_GAP_PATH):
 
 registers = data.get("registers", [])
 reg_addr_map = {}
+# ---
 for r in registers:
     name = r["name"]
     offset = r.get("offset", "0x00")
@@ -96,6 +103,7 @@ for r in registers:
             # Extract LSB position
             "lsb": int(bits.split(":")[-1]) if ":" in bits else int(bits),
         })
+    # ---
     reg_field_map[r["name"]] = fields
 
 # ── Detect protocol type from data ───────────────────────────────────────────
@@ -107,13 +115,16 @@ has_fifo = False
 
 for iface in interfaces:
     itype = iface.get("type", "").upper()
+    # Check condition
     if itype in ("I2C", "SPI", "UART", "DMA", "GPIO", "AXI", "AXI_STREAM"):
         protocol_types.add(itype.lower())
     if itype == "INTERRUPT":
         has_interrupt = True
+    # Check condition
     if "fifo" in iface.get("name", "").lower():
         has_fifo = True
 
+# Check condition
 if any("fifo" in r.get("name", "").lower() for r in registers):
     has_fifo = True
 
@@ -121,6 +132,7 @@ print(f"{'='*60}")
 print(f"  TEST-GENERATOR v2 — {module.upper()}")
 print(f"  Scenarios: {len(data.get('test_scenarios', []))} total")
 print(f"  Protocols: {', '.join(protocol_types) if protocol_types else 'generic'}")
+# ---
 print(f"  Registers: {len(registers)}, Fields: {sum(len(f) for f in reg_field_map.values())}")
 print(f"  Coverage gaps: {len(coverage_gaps)}")
 print(f"{'='*60}")
@@ -132,6 +144,7 @@ generated_files = []
 # SEQUENCE TEMPLATES PER CATEGORY
 # ══════════════════════════════════════════════════════════════════════════════
 
+# ── build_reset_seq ──
 def build_reset_seq(reg: Dict) -> str:
     """Verify register reset value after reset."""
     offset = reg_addr_map.get(reg["name"], "0x000")
@@ -146,8 +159,10 @@ def build_reset_seq(reg: Dict) -> str:
     lines.append(f'  else')
     lines.append(f'    `uvm_info(get_type_name(), "reset_{reg["name"]}: OK ({reset_val})", UVM_LOW)')
     return "\n".join(lines)
+# ---
 
 
+# ── build_rw_seq ──
 def build_rw_seq(reg: Dict, pattern: str = "pattern_1", show_field_info: bool = False) -> str:
     """Write pattern to register, read back, verify."""
     offset = reg_addr_map.get(reg["name"], "0x000")
@@ -171,6 +186,7 @@ def build_rw_seq(reg: Dict, pattern: str = "pattern_1", show_field_info: bool = 
         field_lines = []
         for f in fields:
             if f["access"] in ("rw", "wo", "w1c", "w1s"):
+                # ---
                 field_lines.append(f'    // {f["name"]} [{f["bits"]}] access={f["access"]} width={f["width"]}')
         if field_lines:
             lines.append(f'  // Fields of {reg["name"]}:')
@@ -189,6 +205,7 @@ def build_rw_seq(reg: Dict, pattern: str = "pattern_1", show_field_info: bool = 
     return "\n".join(lines)
 
 
+# ── build_ro_seq ──
 def build_ro_seq(reg: Dict) -> str:
     """Write to RO register, verify write-ignored."""
     offset = reg_addr_map.get(reg["name"], "0x000")
@@ -196,6 +213,7 @@ def build_ro_seq(reg: Dict) -> str:
     lines = []
     lines.append('  apb_rw_seq rw = apb_rw_seq::type_id::create("rw");')
     lines.append(f'  // RO check: {reg["name"]} @ {offset} — write should be ignored')
+    # ---
     lines.append(f"  rw.randomize() with {{ write==1; addr=={offset}; data==32'hFFFF_FFFF; }};")
     lines.append('  rw.start(m_sequencer);')
     lines.append(f'  rw.randomize() with {{ write==0; addr=={offset}; }};')
@@ -208,6 +226,7 @@ def build_ro_seq(reg: Dict) -> str:
     return "\n".join(lines)
 
 
+# ── build_reserved_seq ──
 def build_reserved_seq(reg: Dict) -> str:
     """Write 1s to reserved bit positions, verify they stick at 0."""
     offset = reg_addr_map.get(reg["name"], "0x000")
@@ -221,6 +240,7 @@ def build_reserved_seq(reg: Dict) -> str:
     for f in reserved:
         if ":" in f["bits"]:
             msb, lsb = f["bits"].split(":")
+            # ---
             mask_parts.append(f"(32'd{int(msb)+1}'hFFFF << {lsb})")
         else:
             mask_parts.append(f"(32'd1 << {f['lsb']})")
@@ -244,6 +264,7 @@ def build_reserved_seq(reg: Dict) -> str:
     return "\n".join(lines)
 
 
+# ── build_bitbash_seq ──
 def build_bitbash_seq(reg_name: str, field_name: str, bits: str, width: int) -> str:
     """Bit-bash: toggle each bit of a multi-bit field independently."""
     offset = reg_addr_map.get(reg_name, "0x000")
@@ -269,6 +290,7 @@ def build_bitbash_seq(reg_name: str, field_name: str, bits: str, width: int) -> 
     return "\n".join(lines)
 
 
+# ── build_rmw_seq ──
 def build_rmw_seq(reg: Dict) -> str:
     """Read-Modify-Write: read, modify RW fields, write back, verify."""
     offset = reg_addr_map.get(reg["name"], "0x000")
@@ -296,6 +318,7 @@ def build_rmw_seq(reg: Dict) -> str:
             else:
                 ro_masks.append(f"(32'd1 << {f['lsb']})")
         ro_mask_expr = " | ".join(ro_masks) if ro_masks else "0"
+        # ---
         lines.append(f'  automatic logic [31:0] ro_expected = orig_val & ({ro_mask_expr});')
     lines.append(f'  // 2. Write back with RW fields toggled')
     toggle_mask = " | ".join(f"(32'd{1 << f['lsb']})" for f in rw_fields) if rw_fields else "0"
@@ -315,12 +338,14 @@ def build_rmw_seq(reg: Dict) -> str:
     return "\n".join(lines)
 
 
+# ── build_adjacent_seq ──
 def build_adjacent_seq(reg1: str, reg2: str) -> str:
     """Cross-talk check between adjacent registers."""
     off1 = reg_addr_map.get(reg1, "0x000")
     off2 = reg_addr_map.get(reg2, "0x000")
     lines = []
     lines.append('  apb_rw_seq rw = apb_rw_seq::type_id::create("rw");')
+    # ---
     lines.append(f'  // Cross-talk: {reg1} @ {off1} → {reg2} @ {off2}')
     lines.append(f'  rw.randomize() with {{ write==1; addr=={off1}; data==32\'hA5A5_A5A5; }};')
     lines.append('  rw.start(m_sequencer);')
@@ -331,6 +356,7 @@ def build_adjacent_seq(reg1: str, reg2: str) -> str:
     return "\n".join(lines)
 
 
+# ── build_stress_write_seq ──
 def build_stress_write_seq(regs: List[Dict], pattern_name: str, test_val: str) -> str:
     """Write same pattern to multiple registers."""
     targets = []
@@ -346,6 +372,7 @@ def build_stress_write_seq(regs: List[Dict], pattern_name: str, test_val: str) -
     lines = []
     lines.append('  apb_rw_seq rw = apb_rw_seq::type_id::create("rw");')
     lines.append(f'  // Stress write: {pattern_name} ({test_val}) to {len(targets)} registers')
+    # ---
     for name, off in targets:
         lines.append(f'  rw.randomize() with {{ write==1; addr=={off}; data=={test_val}; }};')
         lines.append('  rw.start(m_sequencer);')
@@ -360,6 +387,7 @@ def build_stress_write_seq(regs: List[Dict], pattern_name: str, test_val: str) -
     return "\n".join(lines)
 
 
+# ── build_i2c_scenario ──
 def build_i2c_scenario(name: str, desc: str, speed_config: str = "default") -> str:
     """Generate I2C protocol test sequence body."""
     desc_lower = desc.lower()
@@ -371,6 +399,7 @@ def build_i2c_scenario(name: str, desc: str, speed_config: str = "default") -> s
     lines.append('  // Enable I2C core')
     lines.append('  rw.randomize() with { write==1; addr==12\'h000; data==32\'h0000_0001; };')  # ctrl_reg: i2c_en=1
     lines.append('  rw.start(m_sequencer);')
+    # ---
     lines.append('  #100;')
 
     if "speed" in speed_config:
@@ -396,6 +425,7 @@ def build_i2c_scenario(name: str, desc: str, speed_config: str = "default") -> s
         lines.append('  rw.randomize() with { write==1; addr==12\'h00C; data==32\'h0000_0050; };')  # addr_reg: slave=0x50
         lines.append('  rw.start(m_sequencer);')
         lines.append('  rw.randomize() with { write==1; addr==12\'h010; data==32\'h0000_00AB; };')  # tx_data = 0xAB
+        # ---
         lines.append('  rw.start(m_sequencer);')
         lines.append('  // Issue START + WRITE')
         lines.append('  rw.randomize() with { write==1; addr==12\'h008; data==32\'h0000_0009; };')  # cmd_reg: start=1, write=1
@@ -421,6 +451,7 @@ def build_i2c_scenario(name: str, desc: str, speed_config: str = "default") -> s
         lines.append('  rw.start(m_sequencer);')
         lines.append('  `uvm_info(get_type_name(), $sformatf("I2C read data: 0x%0h", rw.data), UVM_LOW)')
         lines.append('  // Issue STOP')
+        # ---
         lines.append('  rw.randomize() with { write==1; addr==12\'h008; data==32\'h0000_0002; };')
         lines.append('  rw.start(m_sequencer);')
 
@@ -446,6 +477,7 @@ def build_i2c_scenario(name: str, desc: str, speed_config: str = "default") -> s
         lines.append('  rw.randomize() with { write==1; addr==12\'h010; data==32\'h0000_00FF; };')
         lines.append('  rw.start(m_sequencer);')
         lines.append('  rw.randomize() with { write==1; addr==12\'h008; data==32\'h0000_0009; };')  # start+write
+        # ---
         lines.append('  rw.start(m_sequencer);')
         lines.append('  #2000;')
         lines.append('  // Check arbitration/NACK status')
@@ -471,6 +503,7 @@ def build_i2c_scenario(name: str, desc: str, speed_config: str = "default") -> s
         lines.append('  rw.randomize() with { write==1; addr==12\'h008; data==32\'h0000_0009; };')  # start+write
         lines.append('  rw.start(m_sequencer);')
         lines.append('  #2000;')
+# ---
 
     elif "general_call" in desc_lower:
         lines.append('  // I2C General Call (addr=0x00)')
@@ -496,6 +529,7 @@ def build_i2c_scenario(name: str, desc: str, speed_config: str = "default") -> s
         # Generic I2C transaction
         lines.append('  // Generic I2C transaction')
         lines.append('  rw.randomize() with { write==1; addr==12\'h00C; data==32\'h0000_0050; };')
+        # ---
         lines.append('  rw.start(m_sequencer);')
         lines.append('  rw.randomize() with { write==1; addr==12\'h008; data==32\'h0000_0009; };')
         lines.append('  rw.start(m_sequencer);')
@@ -506,12 +540,14 @@ def build_i2c_scenario(name: str, desc: str, speed_config: str = "default") -> s
     return "\n".join(lines)
 
 
+# ── build_fifo_scenario ──
 def build_fifo_scenario(name: str, desc: str) -> str:
     """Generate FIFO test sequence."""
     desc_lower = desc.lower()
     lines = []
     lines.append('  apb_rw_seq rw = apb_rw_seq::type_id::create("rw");')
 
+    # Check condition
     if "fill" in desc_lower or "overflow" in desc_lower or "full" in desc_lower:
         lines.append('  // Fill FIFO to full/overflow')
         lines.append('  rw.randomize() with { write==1; addr==12\'h01C; data==32\'h0000_0044; };')  # fifo_ctrl: thresholds=4
@@ -521,6 +557,7 @@ def build_fifo_scenario(name: str, desc: str) -> str:
         lines.append('    rw.start(m_sequencer);')
         lines.append('    #50;')
         lines.append('  end')
+        # ---
         lines.append('  // Check FIFO full flag')
         lines.append('  rw.randomize() with { write==0; addr==12\'h018; };')  # status_reg
         lines.append('  rw.start(m_sequencer);')
@@ -546,6 +583,7 @@ def build_fifo_scenario(name: str, desc: str) -> str:
         lines.append('    begin')
         lines.append('      repeat (4) begin')
         lines.append('        rw.randomize() with { write==1; addr==12\'h010; data==32\'h0000_00AB; };')
+        # ---
         lines.append('        rw.start(m_sequencer);')
         lines.append('        #30;')
         lines.append('      end')
@@ -571,6 +609,7 @@ def build_fifo_scenario(name: str, desc: str) -> str:
         lines.append('  rw.start(m_sequencer);')
         lines.append('  if (rw.data[4] && rw.data[2]) // rx_empty && tx_empty')
         lines.append('    `uvm_info(get_type_name(), "fifo_flush: both FIFOs empty after flush", UVM_LOW)')
+# ---
 
     elif "half" in desc_lower or "threshold" in desc_lower:
         lines.append('  // FIFO threshold crossing')
@@ -593,12 +632,15 @@ def build_fifo_scenario(name: str, desc: str) -> str:
     return "\n".join(lines)
 
 
+# ── build_interrupt_scenario ──
 def build_interrupt_scenario(name: str, desc: str) -> str:
     """Generate interrupt test sequence."""
     desc_lower = desc.lower()
+    # ---
     lines = []
     lines.append('  apb_rw_seq rw = apb_rw_seq::type_id::create("rw");')
 
+    # Check condition
     if "clear" in desc_lower or "assert" in desc_lower:
         lines.append('  // Interrupt: assert and clear')
         lines.append('  // Enable interrupt')
@@ -621,6 +663,7 @@ def build_interrupt_scenario(name: str, desc: str) -> str:
         lines.append('  rw.randomize() with { write==0; addr==12\'h020; };')
         lines.append('  rw.start(m_sequencer);')
         lines.append('  `uvm_info(get_type_name(), $sformatf("interrupt_multiple: status=0x%0h (expect multiple bits)", rw.data), UVM_LOW)')
+# ---
 
     elif "during" in desc_lower:
         lines.append('  // Interrupt during active transaction')
@@ -638,6 +681,7 @@ def build_interrupt_scenario(name: str, desc: str) -> str:
     return "\n".join(lines)
 
 
+# ── build_back_to_back_seq ──
 def build_back_to_back_seq() -> str:
     """Back-to-back APB access without idle cycles."""
     lines = []
@@ -646,6 +690,7 @@ def build_back_to_back_seq() -> str:
     lines.append('  rw.randomize() with { write==1; addr==12\'h000; data==32\'hA5A5_A5A5; };')
     lines.append('  rw.start(m_sequencer);')
     lines.append('  rw.randomize() with { write==1; addr==12\'h004; data==32\'h5A5A_5A5A; };')
+    # ---
     lines.append('  rw.start(m_sequencer);')
     lines.append('  rw.randomize() with { write==0; addr==12\'h000; };')
     lines.append('  rw.start(m_sequencer);')
@@ -654,6 +699,7 @@ def build_back_to_back_seq() -> str:
     return "\n".join(lines)
 
 
+# ── build_address_hole_seq ──
 def build_address_hole_seq(from_offset: str, to_offset: str) -> str:
     """Access reserved address region, expect PSLVERR."""
     lines = []
@@ -669,6 +715,7 @@ def build_address_hole_seq(from_offset: str, to_offset: str) -> str:
 # CATEGORY DISPATCHER
 # ══════════════════════════════════════════════════════════════════════════════
 
+# ── get_seq_body ──
 def get_seq_body(scenario: Dict, index: int) -> str:
     """Dispatch scenario to appropriate sequence template based on category."""
     name = scenario.get("name", f"test_{index}")
@@ -687,6 +734,7 @@ def get_seq_body(scenario: Dict, index: int) -> str:
         reg_name = name.replace("reg_rw_", "")
         reg = next((r for r in registers if r["name"] == reg_name), None)
         if reg:
+              # return computed value
             return build_rw_seq(reg, show_field_info=True)
 
     elif category == "register_ro":
@@ -696,6 +744,7 @@ def get_seq_body(scenario: Dict, index: int) -> str:
             reg_name = name.replace("reg_ro_", "")
         # Handle reg_ro_fields vs reg_ro
         reg_name = name.replace("reg_ro_", "").replace("reg_ro_fields_", "")
+        # ---
         reg = next((r for r in registers if r["name"] == reg_name), None)
         if reg:
             return build_ro_seq(reg)
@@ -716,11 +765,13 @@ def get_seq_body(scenario: Dict, index: int) -> str:
                 fields = reg_field_map.get(reg_name, [])
                 f = next((f for f in fields if f["name"] == field_name), None)
                 if f:
+                      # return computed value
                     return build_bitbash_seq(reg_name, field_name, f["bits"], f["width"])
 
     elif category == "register_rmw":
         reg_name = name.replace("rmw_", "")
         reg = next((r for r in registers if r["name"] == reg_name), None)
+        # ---
         if reg:
             return build_rmw_seq(reg)
 
@@ -728,6 +779,7 @@ def get_seq_body(scenario: Dict, index: int) -> str:
         parts = name.replace("adjacent_pair_", "").split("_", 1)
         if len(parts) == 2:
             reg1, reg2 = parts[0], parts[1]
+              # return computed value
             return build_adjacent_seq(reg1, reg2)
 
     elif category == "stress_register":
@@ -740,35 +792,46 @@ def get_seq_body(scenario: Dict, index: int) -> str:
             "all_random": "$urandom",
         }
         test_val = test_val_map.get(pattern_name, "32'hA5A5_A5A5")
+          # return computed value
         return build_stress_write_seq(registers, pattern_name, test_val)
 
     elif category == "stress_bus":
+          # return computed value
         return build_back_to_back_seq()
 
     elif category == "stress_address":
+        # ---
         addr_pattern = r'0x([0-9a-fA-F]+)'
         addrs = re.findall(addr_pattern, name)
         if len(addrs) >= 2:
+              # return computed value
             return build_address_hole_seq(f"0x{addrs[0]}", f"0x{addrs[1]}")
         elif addrs:
+              # return computed value
             return build_address_hole_seq(f"0x{addrs[0]}", "0xFFF")
         # Fallback
+          # return computed value
         return build_back_to_back_seq()
 
     elif category == "stress_reset":
+          # return computed value
         return '  // Reset during transaction — sequence placeholder\n  `uvm_info(get_type_name(), "reset_during_transaction: check clean state after reset", UVM_LOW)'
 
     elif category == "stress_performance":
+          # return computed value
         return '  // Worst-case latency — sequence placeholder\n  `uvm_info(get_type_name(), "worst_case: max load scenario", UVM_LOW)'
 
     elif category.startswith("protocol_i2c"):
         config = scenario.get("config", "default")
+          # return computed value
         return build_i2c_scenario(name, desc, config)
 
     elif category.startswith("protocol_fifo"):
+          # return computed value
         return build_fifo_scenario(name, desc)
 
     elif category.startswith("protocol_interrupt"):
+          # return computed value
         return build_interrupt_scenario(name, desc)
 
     elif category == "coverage_gap":
@@ -796,6 +859,7 @@ def get_seq_body(scenario: Dict, index: int) -> str:
             lines.append('  rw.start(m_sequencer);')
             lines.append('  #50;')
             lines.append('  rw.randomize() with { write==1; addr==12\'h000; data==32\'h0000_FFFF; };')
+            # ---
             lines.append('  rw.start(m_sequencer);')
             lines.append('  #50;')
             lines.append('  rw.randomize() with { write==1; addr==12\'h000; data==32\'h0000_0000; };')
@@ -821,6 +885,7 @@ def get_seq_body(scenario: Dict, index: int) -> str:
     elif category == "user_defined":
         # Check scenario detail for register-based apb_steps
         reg_name = None
+        # ---
         for r in registers:
             if r["name"].lower() in desc.lower():
                 reg_name = r["name"]
@@ -829,6 +894,7 @@ def get_seq_body(scenario: Dict, index: int) -> str:
             reg = next((r for r in registers if r["name"] == reg_name), None)
             if reg:
                 return build_rw_seq(reg)
+          # return computed value
         return '  // User-defined scenario: manual implementation required\n  `uvm_info(get_type_name(), "user_defined: implement scenario body", UVM_LOW)'
 
     # Fallback: generic read of first register
@@ -842,6 +908,7 @@ def get_seq_body(scenario: Dict, index: int) -> str:
         lines.append('  rw.start(m_sequencer);')
         return "\n".join(lines)
 
+      # return computed value
     return '  // No sequence body generated (unknown category)\n  `uvm_info(get_type_name(), "no_sequence: category not implemented", UVM_LOW)'
 
 
@@ -885,6 +952,7 @@ for i, sc in enumerate(scenarios):
 // Category: {category}
 // {desc}
 
+# ── {name}_seq extends base_seq; ──
 class {name}_seq extends base_seq;
   `uvm_object_utils({name}_seq)
   function new(string n = "{name}_seq"); super.new(n); endfunction
@@ -896,6 +964,7 @@ class {name}_seq extends base_seq;
 endclass : {name}_seq
 """
     path = os.path.join(SEQ_DIR, f"{name}_seq.sv")
+    # ---
     with open(path, "w", encoding="utf-8") as f:
         f.write(f"// Auto-generated by digital-verify-pro v2 test-generator\n{seq_code}")
     generated_files.append(path)
@@ -906,6 +975,7 @@ endclass : {name}_seq
 regr_code = f"""// {DATE}
 // Regression test for {module} — v2 (category-dispatched)
 
+# ── {module}_regression_test extends base_test; ──
 class {module}_regression_test extends base_test;
   `uvm_component_utils({module}_regression_test)
   function new(string n, uvm_component p); super.new(n, p); endfunction
@@ -921,6 +991,7 @@ for sc in scenarios:
     begin
       {sname}_seq seq_{sname} = {sname}_seq::type_id::create("seq_{sname}");
       seq_{sname}.start(env.apb_agt.seqr);
+      # ---
       #200;
     end
 """
@@ -946,6 +1017,7 @@ manifest = {
 for sc in scenarios:
     sc_name = sc.get("name", "test")
     manifest["tests"].append({
+        # ---
         "name": sc_name,
         "file": f"{sc_name}_seq.sv",
         "class": f"{sc_name}_seq",
@@ -971,6 +1043,7 @@ print(f"  Total sequences: {len(generated_files)}")
 print(f"  Categories:")
 for cat, cnt in sorted(cat_counts.items()):
     print(f"    {cat:<25} {cnt}")
+# ---
 if gap_test_names:
     print(f"  Coverage-driven: {len(gap_test_names)} tests injected from gaps")
 print(f"{'='*60}")

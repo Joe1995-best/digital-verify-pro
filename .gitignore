@@ -80,3 +80,24 @@ standalone-skills/tb-compiler/simv
 standalone-skills/tb-compiler/run_tb_compile.py
 standalone-skills/formal-check/formal/
 standalone-skills/formal-check/.sby
+
+# Quality pipeline reports
+quality_report.json
+
+# Pipeline output dirs
+output/
+output_i2c/
+output_opt/
+output_ot_dma/
+output_spi/
+verify_ot_dma/
+
+# Temp quality check files
+_q.json
+_q_final.json
+sg.json
+
+# Generation scripts
+_gen_*.py
+_fix_gen.py
+_add_lifecycle.py

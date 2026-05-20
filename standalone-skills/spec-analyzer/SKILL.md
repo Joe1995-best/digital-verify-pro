@@ -2,6 +2,7 @@
 name: spec-analyzer
 version: 2.0.0
 quality_score: 79.9
+lifecycle: stable
 description: >
   Parse spec YAML into a full verification plan. Identifies protocols, interfaces,
   registers, FSM configurations, and generates test scenarios with functional
@@ -71,6 +72,24 @@ python run.py --spec ../../i2c_spec.yml --out verification_output
 | I2C | 90 scenarios (11 user + 79 auto) | I2C, APB | ✅ Verified |
 | OT DMA | 66 scenarios (9 user + 57 auto) | DMA, APB | ✅ Verified |
 | PCIe EP | 12 scenarios | PCIe, APB, INTR | ✅ Verified |
+
+
+
+## Config
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `timeout_seconds` | int | 300 | 执行超时（秒） |
+| `log_level` | enum | `info` | 日志级别：debug/info/warn/error |
+| `out_dir` | string | `output/` | 输出目录 |
+
+
+
+## Known Limitations
+
+- 依赖上游 skill 的输出格式，版本变更可能破坏兼容性
+- 当前为 standalone 模式，未深度集成 pipeline 上下文
+- 大文件处理可能受 Python 单线程性能限制
 
 ## Dependencies
 

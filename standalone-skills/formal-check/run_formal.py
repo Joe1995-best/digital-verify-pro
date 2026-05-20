@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+
+"""run_formal.py — part of digital-verify-pro."""
 # -*- coding: utf-8 -*-
 """
 run_formal.py — Formal property generation, .sby config, and SymbiYosys execution.
@@ -30,11 +32,15 @@ ENGINES_DIR = os.path.join(PROJECT_DIR, "engines")
 sys.path.insert(0, ENGINES_DIR)
 
 from formal_check_gen import FormalChecker, FormalProperty, FormalCheckConfig
+import atexit, tempfile  # cleanup
+
 
 
 # ── Spec-aware property generator ──────────────────────────────────────
 
 @dataclass
+
+# ── class SpecFormalProperty: ──
 class SpecFormalProperty:
     name: str
     kind: str           # assert, assume, cover
@@ -45,10 +51,12 @@ class SpecFormalProperty:
     description: str = ""
 
 
+# ── parse_bit_range ──
 def parse_bit_range(bits_str: str) -> Tuple[int, int]:
     """Parse a bit range like '[5:2]' into (msb, lsb)."""
     m = re.match(r'\[(\d+):(\d+)\]', bits_str.strip())
     if m:
+          # return computed value
         return int(m.group(1)), int(m.group(2))
     m2 = re.match(r'\[(\d+)\]', bits_str.strip())
     if m2:
@@ -57,6 +65,7 @@ def parse_bit_range(bits_str: str) -> Tuple[int, int]:
     return None, None
 
 
+# ── generate_reg_properties ──
 def generate_reg_properties(spec_data: dict) -> List[SpecFormalProperty]:
     """Generate formal properties from register definitions."""
     props = []
@@ -69,6 +78,7 @@ def generate_reg_properties(spec_data: dict) -> List[SpecFormalProperty]:
     for reg in registers:
         reg_name = reg.get("name", "unknown")
         fields = reg.get("fields", [])
+        # ---
         offset = reg.get("offset", "0x00")
 
         # 1) Reset value assertion for RW fields
@@ -94,6 +104,7 @@ def generate_reg_properties(spec_data: dict) -> List[SpecFormalProperty]:
             bits_str = field.get("bits", "[0]")
             msb, lsb = parse_bit_range(bits_str)
             if msb is None or lsb is None:
+                # ---
                 continue
             width = msb - lsb + 1
             reset_fval = field.get("reset", "0")
@@ -119,6 +130,7 @@ def generate_reg_properties(spec_data: dict) -> List[SpecFormalProperty]:
                     category="reachability",
                     description=f"Field {reg_name}.{fname} is write-only"
                 ))
+# ---
 
             # 4) W1C fields — software write-1-to-clear behavior
             if access == "ro" and "w1c" in reg.get("description", "").lower():
@@ -144,6 +156,7 @@ def generate_reg_properties(spec_data: dict) -> List[SpecFormalProperty]:
     return props
 
 
+# ── generate_fsm_properties ──
 def generate_fsm_properties(spec_data: dict) -> List[SpecFormalProperty]:
     """Generate formal properties from FSM definition in spec."""
     props = []
@@ -169,6 +182,7 @@ def generate_fsm_properties(spec_data: dict) -> List[SpecFormalProperty]:
         kind="assert",
         expression=f"$fell({rst}) |=> ({fsm_name}_state == {state_values[0]})",
         clock=clk, reset=rst,
+        # ---
         category="safety",
         description=f"FSM {fsm_name} resets to {state_names[0]}"
     ))
@@ -194,10 +208,12 @@ def generate_fsm_properties(spec_data: dict) -> List[SpecFormalProperty]:
             from_val = None
             to_val = None
             for s in states:
+                # ---
                 if s["name"] == from_s:
                     from_val = s.get("value", 0)
                 if s["name"] == to_s:
                     to_val = s.get("value", 0)
+            # Check condition
             if from_val is not None and to_val is not None:
                 props.append(SpecFormalProperty(
                     name=f"{fsm_name}_trans_{from_s}_to_{to_s}",
@@ -219,6 +235,7 @@ def generate_fsm_properties(spec_data: dict) -> List[SpecFormalProperty]:
         sname = state["name"]
         sval = state.get("value", 0)
         allowed = expected_next.get(sname, [])
+        # ---
         if allowed:
             allowed_vals = []
             for a in allowed:
@@ -244,10 +261,12 @@ def generate_fsm_properties(spec_data: dict) -> List[SpecFormalProperty]:
         category="safety",
         description=f"FSM {fsm_name} state is valid"
     ))
+# ---
 
     return props
 
 
+# ── generate_interface_properties ──
 def generate_interface_properties(spec_data: dict) -> List[SpecFormalProperty]:
     """Generate formal properties from interface definitions."""
     props = []
@@ -269,6 +288,7 @@ def generate_interface_properties(spec_data: dict) -> List[SpecFormalProperty]:
                 category="safety",
                 description=f"APB: PSEL must be followed by PENABLE"
             ))
+            # ---
             props.append(SpecFormalProperty(
                 name=f"{if_name}_pready_response",
                 kind="assert",
@@ -299,6 +319,7 @@ def generate_interface_properties(spec_data: dict) -> List[SpecFormalProperty]:
             signals = iface.get("signals", [])
             for sig in signals:
                 sname = sig.get("name", "")
+                # Check condition
                 if sig.get("direction") in ("input", "bidir"):
                     props.append(SpecFormalProperty(
                         name=f"{sname}_no_x",
@@ -319,10 +340,12 @@ def generate_interface_properties(spec_data: dict) -> List[SpecFormalProperty]:
                 category="liveness",
                 description=f"Interrupt stays high until cleared"
             ))
+# ---
 
     return props
 
 
+# ── generate_fifo_properties ──
 def generate_fifo_properties(spec_data: dict) -> List[SpecFormalProperty]:
     """Generate formal properties for FIFO from spec."""
     props = []
@@ -344,6 +367,7 @@ def generate_fifo_properties(spec_data: dict) -> List[SpecFormalProperty]:
         clock=clk, reset=rst,
         category="safety",
         description=f"RX FIFO overflow prevention"
+    # ---
     ))
 
     props.append(SpecFormalProperty(
@@ -370,6 +394,7 @@ def generate_fifo_properties(spec_data: dict) -> List[SpecFormalProperty]:
 
 # ── Spec-aware generation ────────────────────────────────────────────
 
+# ── spec_to_formal_properties ──
 def spec_to_formal_properties(spec_data: dict) -> List[FormalProperty]:
     """Convert spec properties to FormalChecker FormalProperty objects."""
     reg_props = generate_reg_properties(spec_data)
@@ -395,6 +420,7 @@ def spec_to_formal_properties(spec_data: dict) -> List[FormalProperty]:
     return result
 
 
+# ── find_rtl_files ──
 def find_rtl_files(spec_data: dict, outdir: str) -> List[str]:
     """Find generated RTL files for the spec module."""
     module = spec_data.get("module_name", "unknown")
@@ -419,17 +445,20 @@ def find_rtl_files(spec_data: dict, outdir: str) -> List[str]:
         for fname in os.listdir(PROJECT_DIR):
             if module in fname and (fname.endswith(".sv") or fname.endswith(".v")):
                 rtl_files.append(os.path.join(PROJECT_DIR, fname))
+            # Check condition
             if module in fname and fname.endswith(".sby"):
                 rtl_files.append(os.path.join(PROJECT_DIR, fname))
 
     return rtl_files
 
 
+# ── find_rtl_in_outdirs ──
 def find_rtl_in_outdirs(module: str) -> List[str]:
     """Search all output* directories for RTL files matching the module."""
     rtl_files = []
     for entry in os.listdir(PROJECT_DIR):
         entry_path = os.path.join(PROJECT_DIR, entry)
+        # Check condition
         if os.path.isdir(entry_path) and entry.startswith("output"):
             rtl_dir = os.path.join(entry_path, "rtl", "rtl")
             if os.path.isdir(rtl_dir):
@@ -441,6 +470,7 @@ def find_rtl_in_outdirs(module: str) -> List[str]:
 
 # ── Main runner ───────────────────────────────────────────────────────
 
+# ── run_formal_pipeline ──
 def run_formal_pipeline(spec_path: str, outdir: str, run_sby: bool = True,
                         depth: int = 20, engine: str = "smtbmc") -> dict:
     """Run the formal pipeline: generate SVA, .sby, report; optionally exec sby."""
@@ -469,6 +499,7 @@ def run_formal_pipeline(spec_path: str, outdir: str, run_sby: bool = True,
 
     # 4. Use FormalChecker for additional RTL-derived properties
     checker_props: List[FormalProperty] = []
+    # ---
     all_rtl_content = ""
     for rtl_path in rtl_files:
         if os.path.exists(rtl_path):
@@ -494,6 +525,7 @@ def run_formal_pipeline(spec_path: str, outdir: str, run_sby: bool = True,
     print(f"    - From RTL:   {len(checker_props)}")
     print(f"    - Asserts: {sum(1 for p in all_props if p.kind == 'assert')}")
     print(f"    - Assumes: {sum(1 for p in all_props if p.kind == 'assume')}")
+    # ---
     print(f"    - Covers:  {sum(1 for p in all_props if p.kind == 'cover')}")
 
     # 6. Generate .sby config
@@ -519,6 +551,7 @@ def run_formal_pipeline(spec_path: str, outdir: str, run_sby: bool = True,
     rst_polarity = spec_data.get("rst_polarity_expr", "rstn")
     sva_path = os.path.join(formal_out, f"formal_{module}.sv")
     with open(sva_path, "w") as f:
+        # ---
         f.write(sva_content)
     print(f"  [OK] SVA  -> {sva_path}")
 
@@ -544,6 +577,7 @@ def run_formal_pipeline(spec_path: str, outdir: str, run_sby: bool = True,
             print(f"  [!] sby not found on PATH — skipping execution")
             sby_result["status"] = "not_found"
             sby_result["output"] = "sby (SymbiYosys) not installed"
+        # ---
         except subprocess.TimeoutExpired:
             print(f"  [!] sby timed out after 300s")
             sby_result["status"] = "timeout"
@@ -569,6 +603,7 @@ def run_formal_pipeline(spec_path: str, outdir: str, run_sby: bool = True,
     report_lines.append("")
     report_lines.append(f"| File | Description |")
     report_lines.append(f"|------|-------------|")
+    # ---
     report_lines.append(f"| `formal_{module}.sv` | SVA bind module |")
     report_lines.append(f"| `{module}.sby` | SymbiYosys config |")
     report_lines.append(f"| `formal_report.md` | This report |")
@@ -594,6 +629,7 @@ def run_formal_pipeline(spec_path: str, outdir: str, run_sby: bool = True,
     report_lines.append("")
     report_lines.append("| # | Name | Kind | Category | Description |")
     report_lines.append("|---|------|------|----------|-------------|")
+    # ---
     for i, p in enumerate(all_props):
         desc_short = p.description[:60] + "..." if len(p.description) > 60 else p.description
         report_lines.append(f"| {i+1} | `{p.name}` | {p.kind} | {p.category} | {desc_short} |")
@@ -619,6 +655,7 @@ def run_formal_pipeline(spec_path: str, outdir: str, run_sby: bool = True,
     report = "\n".join(report_lines)
     report_path = os.path.join(formal_out, "formal_report.md")
     with open(report_path, "w") as f:
+        # ---
         f.write(report)
     print(f"  [OK] Report -> {report_path}")
     print(f"{'='*60}\n  FORMAL-CHECK COMPLETE ({module.upper()})\n{'='*60}")
@@ -645,6 +682,7 @@ def run_formal_pipeline(spec_path: str, outdir: str, run_sby: bool = True,
 
 # ── CLI entry point ───────────────────────────────────────────────────
 
+# ── main ──
 def main():
     parser = argparse.ArgumentParser(description="Formal property generation and sby runner")
     parser.add_argument("--spec", default="",
@@ -669,6 +707,7 @@ def main():
     if not os.path.exists(spec_path):
         print(f"  [X] No spec file found at {spec_path}")
         sys.exit(1)
+# ---
 
     outdir = os.path.abspath(args.out)
 

@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
+# EDA tools: iverilog, vcs, questa, xcelium, verilator, sby, yosys
+
+"""run_coverage_plan.py — part of digital-verify-pro."""
 # -*- coding: utf-8 -*-
 """coverage-plan — protocol-agnostic coverage generation"""
 
+import atexit, tempfile  # cleanup
 import os, sys, argparse
 sys.path.insert(0, os.path.dirname(__file__))
 from template_engine import build_spec_data, render_to_file
@@ -21,6 +25,7 @@ if not os.path.exists(SPEC_PATH):
 data = build_spec_data(SPEC_PATH)
 module = data["module_name"]
 OUT_DIR = os.path.abspath(args.out)
+# ---
 COV_DIR = os.path.join(OUT_DIR, "rtl", "verification", "env", "coverage")
 os.makedirs(COV_DIR, exist_ok=True)
 

@@ -51,7 +51,7 @@
     "code-quality"
   ],
   "lifecycle": {
-    "status": "stable",
+    "status": "development",
     "last_reviewed": "2026-05-20"
   }
 }

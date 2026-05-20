@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
+# EDA tools: iverilog, vcs, questa, xcelium, verilator, sby, yosys
+
+"""run_doc_gen.py — part of digital-verify-pro."""
 # -*- coding: utf-8 -*-
 """doc-gen — verification close report (protocol-agnostic)"""
 
+import atexit, tempfile  # cleanup
 import os, glob, argparse, sys
 sys.path.insert(0, os.path.dirname(__file__))
 from template_engine import build_spec_data
@@ -21,6 +25,7 @@ if not os.path.exists(SPEC_PATH):
 data = build_spec_data(SPEC_PATH)
 module = data["module_name"]
 OUT_DIR = os.path.abspath(args.out)
+# ---
 DOC_DIR = os.path.join(OUT_DIR, "docs")
 os.makedirs(DOC_DIR, exist_ok=True)
 
@@ -71,6 +76,7 @@ for i, sc in enumerate(data["test_scenarios"]):
     report += f"{i+1}. **{sc.get('name','?')}** — {sc.get('description','')}\n"
 
 report += f"""
+# ---
 ## Key Files
 
 - Testbench: `rtl/verification/env/tb_top.sv`
@@ -96,6 +102,7 @@ print(f"{'='*60}")
 from validators import validate_doc_gen
 result = validate_doc_gen(OUT_DIR)
 for iss in result["issues"]:
+    # ---
     print(f"  [{iss['severity']}] {iss.get('file','')}: {iss['message']}")
 if not result["passed"]:
     print(f"  [VALIDATION] doc-gen FAILED"); sys.exit(1)

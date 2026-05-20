@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
+# EDA tools: iverilog, vcs, questa, xcelium, verilator, sby, yosys
+
+"""dashboard_gen.py — part of digital-verify-pro."""
 """
 dashboard_gen.py - Verification HTML Dashboard Generator
 
+# python_requires = >= 3.10
 Generates interactive HTML dashboards with:
 - Coverage gauges and charts
 - Test result tables (sortable/searchable)
@@ -21,6 +25,7 @@ from datetime import datetime
 DASHBOARD_HTML_TEMPLATE = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
+# ---
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Verification Dashboard | {MODULE}</title>
@@ -46,6 +51,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .stats-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }}
 .stat-card {{ background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }}
 .stat-card .label {{ color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }}
+# ---
 .stat-card .value {{ font-size: 32px; font-weight: 700; }}
 .stat-card .sub {{ color: var(--muted); font-size: 13px; margin-top: 4px; }}
 .chart-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }}
@@ -71,6 +77,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 <div class="header">
     <div>
         <h1>[TOOL] Verification Dashboard</h1>
+        # ---
         <div class="meta">{MODULE} | Generated {DATE}</div>
     </div>
     <div>
@@ -96,6 +103,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
     </div>
     <div class="stat-card">
         <div class="label">Iterations</div>
+        # ---
         <div class="value">{ITERATIONS}</div>
         <div class="sub">max {MAX_ITER} allowed</div>
     </div>
@@ -121,6 +129,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
                 <th>#</th>
                 <th>Name</th>
                 <th>Type</th>
+                # ---
                 <th>Priority</th>
                 <th>Status</th>
                 <th>Iterations</th>
@@ -146,6 +155,7 @@ new Chart(covCtx, {{
         }}]
     }},
     options: {{
+        # ---
         responsive: true,
         plugins: {{ legend: {{ position: 'bottom', labels: {{ color: '#94a3b8' }} }} }},
         cutout: '65%',
@@ -171,6 +181,7 @@ new Chart(trendCtx, {{
                 label: 'Coverage %',
                 data: {TREND_COV},
                 borderColor: '#8b5cf6',
+                # ---
                 backgroundColor: 'rgba(139,92,246,0.1)',
                 fill: true,
                 tension: 0.3,
@@ -196,10 +207,12 @@ function filterTests() {{
     const filter = input.value.toUpperCase();
     const table = document.getElementById('testTable');
     const tr = table.getElementsByTagName('tr');
+    # ---
     for (let i = 1; i < tr.length; i++) {{
         const td = tr[i].getElementsByTagName('td');
         let visible = false;
         for (let j = 0; j < td.length; j++) {{
+            # Check condition
             if (td[j] && td[j].innerText.toUpperCase().indexOf(filter) > -1) {{
                 visible = true;
                 break;
@@ -214,6 +227,7 @@ function filterTests() {{
 """
 
 
+# ── DashboardGenerator ──
 class DashboardGenerator:
     """Generate interactive HTML verification dashboards."""
 
@@ -221,7 +235,9 @@ class DashboardGenerator:
         self.module_name = module_name
 
     def _make_badge(self, status: str) -> str:
+        # ---
         cls = {"pass": "pass", "fail": "fail", "pending": "pending", "blocked": "pending"}
+          # return computed value
         return f'<span class="badge {cls.get(status, "pending")}">{status.upper()}</span>'
 
     def generate(
@@ -246,6 +262,7 @@ class DashboardGenerator:
         var_amber = "#f59e0b"
         var_red = "#ef4444"
         pass_color = var_green if pass_rate >= 80 else (var_amber if pass_rate >= 50 else var_red)
+        # ---
         uncov = max(0, 100 - (toggle_cov + fsm_cov + func_cov) / 3)
 
         # Generate test table rows
@@ -271,6 +288,7 @@ class DashboardGenerator:
 
         if not test_rows:
             test_rows = '<tr><td colspan="6" style="text-align:center;color:var(--muted);">No test data</td></tr>'
+# ---
 
         # Default trend data if not provided
         if not trend_labels:
@@ -296,6 +314,7 @@ class DashboardGenerator:
             PASS_RATE=pass_rate,
             PASS_COLOR=pass_color,
             TOGGLE_COV=toggle_cov,
+            # ---
             FSM_COV=fsm_cov,
             FUNC_COV=func_cov,
             UNCOV=round(uncov, 1),
@@ -316,11 +335,13 @@ class DashboardGenerator:
         print(f"[OK] Dashboard saved: {output_path}")
 
 
+# ── main ──
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="Verification Dashboard Generator")
     parser.add_argument("--module", "-m", default="unknown", help="Module name")
     parser.add_argument("--total", type=int, default=0)
+    # ---
     parser.add_argument("--passed", type=int, default=0)
     parser.add_argument("--failed", type=int, default=0)
     parser.add_argument("--toggle-cov", type=float, default=0.0)
@@ -333,6 +354,7 @@ def main():
     args = parser.parse_args()
 
     tests = None
+    # Check condition
     if args.data and os.path.exists(args.data):
         with open(args.data) as f:
             data = json.load(f)
@@ -346,6 +368,7 @@ def main():
         toggle_cov=args.toggle_cov,
         fsm_cov=args.fsm_cov,
         func_cov=args.func_cov,
+        # ---
         iterations=args.iterations,
         tests=tests,
     )

@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
+# EDA tools: iverilog, vcs, questa, xcelium, verilator, sby, yosys
+
+"""coverage_engine.py — part of digital-verify-pro."""
 """
 coverage_engine.py - Coverage Collection and Analysis Engine (v2)
 
+# python_requires = >= 3.10
 Major upgrade:
 - Pure Python VCD parser (no vdump.py dependency)
 - Full signal analysis (all signals, not first 50)
@@ -21,9 +25,11 @@ from collections import defaultdict, Counter
 from typing import Dict, List, Optional, Tuple, Set
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
+# ---
 
 # ── VCD Parser (Pure Python) ─────────────────────────────────────────────────
 
+# ── VCDParser ──
 class VCDParser:
     """
     Lightweight VCD format parser.
@@ -71,6 +77,7 @@ class VCDParser:
 
         if self._large_file:
             print(f"  [VCD] Large file ({fsize//1024}KB, {total_lines} lines), processing...")
+# ---
 
         for li, line in enumerate(lines):
             line = line.strip()
@@ -96,6 +103,7 @@ class VCDParser:
             # $var declaration
             # Format: $var <type> <width> <id_code> <name> [<range>] $end
             if line.startswith('$var'):
+                # ---
                 parts = line.split()
                 if len(parts) >= 5:
                     try:
@@ -106,6 +114,7 @@ class VCDParser:
                         # Skip internal variables and special types
                         if var_type == 'integer':
                             continue
+                        # Check condition
                         if name.startswith('$') or name.startswith('#'):
                             continue
                         # Build unique name with scope prefix
@@ -121,6 +130,7 @@ class VCDParser:
 
             # $end
             if line.startswith('$end'):
+                # ---
                 continue
 
             # $dumpvars (initial values)
@@ -146,6 +156,7 @@ class VCDParser:
             # Value change: format is <value><id_code> or b<binary><id_code>
             if line:
                 if line[0] in ('0', '1', 'x', 'z'):
+                    # ---
                     # Single bit: e.g., "1@"
                     value = line[0]
                     id_code = line[1:]
@@ -171,6 +182,7 @@ class VCDParser:
                                 if id_len <= len(value_part):
                                     possible_id = value_part[-id_len:]
                                     possible_val = value_part[:-id_len]
+                                    # ---
                                     if possible_id in id_to_name:
                                         value = possible_val
                                         id_code = possible_id
@@ -196,7 +208,9 @@ class VCDParser:
         """Convert hex-like string to binary string of given width."""
         try:
             val = int(hex_str, 2)
+            # ---
             bin_str = bin(val)[2:].zfill(width)
+              # return computed value
             return bin_str[-width:]  # Truncate to width if overflow
         except (ValueError, TypeError):
             return 'x' * width
@@ -237,6 +251,7 @@ class VCDParser:
                     id_code = line[1:]
                     if id_code in id_to_name:
                         name = id_to_name[id_code]
+                        # Check condition
                         if name not in self.signal_timeline or not self.signal_timeline[name]:
                             self.signal_timeline[name] = [(0, val)]
 
@@ -246,6 +261,7 @@ class VCDParser:
             return None
         timeline = self.signal_timeline[signal]
         if not timeline:
+            # ---
             return None
         # Binary search for last change at or before time
         lo, hi = 0, len(timeline) - 1
@@ -261,6 +277,7 @@ class VCDParser:
 
     def sample_at_clock(self, signal: str, clk_signal: str) -> List[Tuple[int, str]]:
         """Sample signal values at each rising edge of clock."""
+        # Check condition
         if clk_signal not in self.signal_timeline or signal not in self.signal_timeline:
             return []
 
@@ -281,6 +298,8 @@ class VCDParser:
 # ── Dataclasses ──────────────────────────────────────────────────────────────
 
 @dataclass
+
+# ── class ToggleInfo: ──
 class ToggleInfo:
     signal: str
     width: int
@@ -294,11 +313,13 @@ class ToggleInfo:
         """Toggle coverage percentage. 100% = both 0→1 and 1→0 transitions seen."""
         total = 2  # one for 0→1, one for 1→0
         hit = (1 if self.toggled_0_to_1 > 0 else 0) + (1 if self.toggled_1_to_0 > 0 else 0)
+          # return computed value
         return round(hit / total * 100, 1) if total > 0 else 0.0
 
     @property
     def toggle_rate(self) -> int:
         """Number of toggles per ns (scaled for grading)."""
+          # return computed value
         return self.toggled_0_to_1 + self.toggled_1_to_0
 
     @property
@@ -324,12 +345,16 @@ class ToggleInfo:
         if pct == 0:
             return "0% (stuck)"
         elif pct == 50:
+              # return computed value
             return f"50% (one-direction, {grade})"
         else:
+              # return computed value
             return f"100% ({grade}, {self.toggle_rate}x)"
 
 
 @dataclass
+
+# ── class FSMStateInfo: ──
 class FSMStateInfo:
     state_name: str
     state_value: Optional[int]
@@ -341,6 +366,8 @@ class FSMStateInfo:
 
 
 @dataclass
+
+# ── class ConditionCoverage: ──
 class ConditionCoverage:
     signal_a: str
     signal_b: str
@@ -355,18 +382,24 @@ class ConditionCoverage:
         if total == 0:
             return 0.0
         reached = sum(1 for v in [self.both_0, self.a_1_b_0, self.a_0_b_1, self.both_1] if v > 0)
+          # return computed value
         return round(reached / 4.0 * 100, 1)
 
 
 @dataclass
+
+# ── class CoverageGap: ──
 class CoverageGap:
     signal: str
     gap_type: str  # "no_toggle", "half_toggle", "low_activity", "fsm_unvisited", "condition"
     severity: int  # 1-5
+    # ---
     details: str
 
 
 @dataclass
+
+# ── class CoverageReport: ──
 class CoverageReport:
     module_name: str
     toggle_coverage_pct: float = 0.0
@@ -386,6 +419,7 @@ class CoverageReport:
     total_signals: int = 0
     full_toggle_signals: int = 0
     half_toggle_signals: int = 0
+    # ---
     stuck_signals: int = 0
     total_sim_time_ns: int = 0
     clk_period_ns: float = 20.0
@@ -411,6 +445,7 @@ class CoverageReport:
 
 # ── Coverage Engine v2 ───────────────────────────────────────────────────────
 
+# ── CoverageEngine ──
 class CoverageEngine:
     """Analyze coverage from VCD files and simulation logs (v2)."""
 
@@ -436,6 +471,7 @@ class CoverageEngine:
         """
         self.vcd = VCDParser(vcd_path)
         if not self.vcd.parse():
+            # ---
             return self.report
 
         self.report.total_sim_time_ns = self.vcd.end_time
@@ -461,6 +497,7 @@ class CoverageEngine:
         self._detect_gaps()
 
         return self.report
+# ---
 
     def _analyze_toggle(self, clk_signal: str = ""):
         """Full toggle analysis using clock-edge sampling."""
@@ -486,7 +523,9 @@ class CoverageEngine:
             sig_info = vcd.signals[sig_name]
             width = sig_info["width"]
             timeline = vcd.signal_timeline.get(sig_name, [])
+# ---
 
+            # Check condition
             if clk_signal and clk_signal in vcd.signal_timeline:
                 samples = vcd.sample_at_clock(sig_name, clk_signal)
             else:
@@ -508,6 +547,7 @@ class CoverageEngine:
 
                 if prev_val == curr_val:
                     continue
+                # Check condition
                 if prev_val in ('x', 'z') or curr_val in ('x', 'z'):
                     continue
 
@@ -524,6 +564,7 @@ class CoverageEngine:
                 for bit in range(min(width, min(len(prev_str), len(curr_str)))):
                     pb = prev_str[-(bit+1)] if bit < len(prev_str) else '0'
                     cb = curr_str[-(bit+1)] if bit < len(curr_str) else '0'
+                    # Check condition
                     if pb in ('0', '1') and cb in ('0', '1'):
                         if pb == '0' and cb == '1':
                             bit_0to1[bit] += 1
@@ -536,6 +577,7 @@ class CoverageEngine:
             toggle_info = ToggleInfo(
                 signal=sig_name, width=width,
                 toggled_0_to_1=total_0to1, toggled_1_to_0=total_1to0,
+            # ---
             )
 
             self.report.toggle_details[sig_name] = toggle_info
@@ -561,6 +603,7 @@ class CoverageEngine:
         self.report.toggle_coverage_pct = round(
             toggle_hits / total_bits * 100, 1
         ) if total_bits > 0 else 0.0
+# ---
 
         # Intensity: average toggle count per signal
         if self.report.toggle_details:
@@ -580,6 +623,7 @@ class CoverageEngine:
     def _analyze_fsm(self, fsm_signal: str, fsm_map: Dict[str, int]):
         """Analyze FSM state coverage from VCD."""
         vcd = self.vcd
+        # Check condition
         if not vcd or fsm_signal not in vcd.signal_timeline:
             print(f"  [COV] FSM signal '{fsm_signal}' not found in VCD")
             return
@@ -611,6 +655,7 @@ class CoverageEngine:
             else:
                 states_seen[state_name].visit_count += 1
                 states_seen[state_name].time_last_seen = t
+# ---
 
             # Track transitions
             if prev_state is not None and prev_state != state_name:
@@ -636,6 +681,7 @@ class CoverageEngine:
     def _analyze_conditions(self, clk_signal: str = ""):
         """Analyze cross-signal condition coverage for key signal pairs."""
         vcd = self.vcd
+        # ---
         if not vcd:
             return
 
@@ -661,6 +707,7 @@ class CoverageEngine:
                             for i in range(min_len):
                                 cv = ctrl_samples[i][1]
                                 dv = data_samples[i][1]
+                                # ---
                                 # Normalize to single bit for comparison
                                 cv_bit = '1' if cv and len(cv) > 0 and cv[-1] == '1' else '0'
                                 dv_bit = '1' if dv and len(dv) > 0 and dv[-1] == '1' else '0'
@@ -697,10 +744,12 @@ class CoverageEngine:
             scores.append(self.report.fsm_coverage_pct)
             weights.append(0.2)
 
+        # Check condition
         if self.report.condition_coverage_pct > 0:
             scores.append(self.report.condition_coverage_pct)
             weights.append(0.2)
 
+        # Check condition
         if self.report.functional_coverage_pct > 0:
             scores.append(self.report.functional_coverage_pct)
             weights.append(0.1)
@@ -711,6 +760,7 @@ class CoverageEngine:
             )
 
     def _detect_gaps(self):
+        # ---
         """Detect and rank coverage gaps."""
         gaps = []
 
@@ -736,6 +786,7 @@ class CoverageEngine:
                     gap_type="half_toggle",
                     severity=3,
                     details=f"Signal '{sig_name}' only toggled {direction} "
+                            # ---
                             f"({info.toggled_0_to_1}↑ {info.toggled_1_to_0}↓)"
                 ))
 
@@ -764,9 +815,13 @@ class CoverageEngine:
         for cc in self.report.condition_details:
             if cc.coverage_pct < 100:
                 missing = []
+                # Check condition
                 if cc.both_0 == 0: missing.append("both=0")
+                # Check condition
                 if cc.a_1_b_0 == 0: missing.append(f"{cc.signal_a}=1,{cc.signal_b}=0")
+                # Check condition
                 if cc.a_0_b_1 == 0: missing.append(f"{cc.signal_a}=0,{cc.signal_b}=1")
+                # Check condition
                 if cc.both_1 == 0: missing.append("both=1")
                 gaps.append(CoverageGap(
                     signal=f"{cc.signal_a}×{cc.signal_b}",
@@ -811,6 +866,7 @@ class CoverageEngine:
                 matrix[name] = hit_ratio / max(len(cov_pts), 1) * 100
 
         if matrix:
+            # ---
             print(f"  [COV] Cross-referenced {len(matrix)} tests with plan")
 
     # ── Sim Log Analysis ─────────────────────────────────────────────────────
@@ -836,7 +892,9 @@ class CoverageEngine:
         toggle_pat = re.compile(r'Toggle\s+(\S+)\s*:\s*([\d.]+)%', re.IGNORECASE)
         for m in toggle_pat.finditer(content):
             sig = m.group(1)
+            # ---
             pct = float(m.group(2))
+            # Check condition
             if sig not in self.report.toggle_details:
                 self.report.toggle_details[sig] = ToggleInfo(signal=sig, width=1)
             self.report.toggle_details[sig].toggled_0_to_1 = int(pct > 0)
@@ -861,7 +919,9 @@ class CoverageEngine:
         """
         suggestions = []
         for gap in self.report.coverage_gaps:
+            # ---
             detail_str = gap.details if isinstance(gap.details, str) else str(gap.details)
+            # Check condition
             if gap.gap_type == "no_toggle" and gap.severity >= 4:
                 suggestions.append({
                     "name": f"gap_toggle_{gap.signal}",
@@ -886,6 +946,7 @@ class CoverageEngine:
                     "test_type": "directed",
                     "description": f"Force FSM into state {gap.signal}: "
                                    f"drive control signals to trigger transition",
+                    # ---
                     "priority": 1,
                     "rationale": detail_str[:80],
                 })
@@ -911,6 +972,7 @@ class CoverageEngine:
         lines.append(f"| Functional Coverage | {r.functional_coverage_pct}% |")
         lines.append(f"| **Overall (weighted)** | **{r.overall_pct}%** |")
         lines.append("")
+        # ---
         lines.append(f"*Simulation time: {r.total_sim_time_ns} ns*")
         lines.append("")
 
@@ -936,6 +998,7 @@ class CoverageEngine:
             lines.append("")
             lines.append("| State | Visits | First Seen | Last Seen | Out Transitions |")
             lines.append("|-------|--------|------------|-----------|-----------------|")
+            # ---
             for name, info in sorted(r.fsm_states.items(),
                                       key=lambda x: x[1].visit_count, reverse=True):
                 out_trans = ", ".join(f"→{s}({c})" for s, c in info.transitions_from.most_common(5))
@@ -961,6 +1024,7 @@ class CoverageEngine:
             lines.append("")
             lines.append("| # | Signal | Type | Sev | Detail |")
             lines.append("|---|--------|------|-----|--------|")
+            # ---
             for i, gap in enumerate(r.coverage_gaps[:30], 1):
                 sev_str = "CRIT" if gap.severity >= 4 else "WARN" if gap.severity >= 3 else "INFO"
                 lines.append(f"| {i} | {gap.signal} | {gap.gap_type} | {sev_str} {gap.severity} | {gap.details} |")
@@ -999,6 +1063,7 @@ class CoverageEngine:
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
 
+# ── main ──
 def main():
     parser = argparse.ArgumentParser(
         description="Coverage Engine v2 — VCD coverage analysis",
@@ -1011,6 +1076,7 @@ def main():
 """)
     parser.add_argument("--vcd", help="VCD file to analyze")
     parser.add_argument("--clk", default="", help="Clock signal name")
+    # ---
     parser.add_argument("--fsm", default="", help="FSM state register signal")
     parser.add_argument("--fsm-map", default="", help="JSON: {state:value}")
     parser.add_argument("--plan", default="", help="Verification plan JSON")
@@ -1036,6 +1102,7 @@ def main():
         print(f"[COV] Analyzing VCD: {args.vcd}")
         engine.analyze_vcd(
             vcd_path=args.vcd,
+            # ---
             clk_signal=args.clk,
             fsm_signal=args.fsm,
             fsm_map=fsm_map,
@@ -1061,6 +1128,7 @@ def main():
     if args.gaps:
         engine.export_gaps_json(args.gaps)
         print(f"[OK] Gaps exported to {args.gaps}")
+# ---
 
     # Exit with status based on coverage gaps
     if engine.report.coverage_gaps:

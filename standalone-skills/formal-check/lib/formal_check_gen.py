@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+
+"""formal_check_gen.py — part of digital-verify-pro."""
 """
 formal_check_gen.py - Formal Property Check Generator for SymbiYosys
 
@@ -18,7 +20,10 @@ from dataclasses import dataclass, field
 
 
 @dataclass
+
+# ── class FormalProperty: ──
 class FormalProperty:
+    # ---
     name: str
     kind: str  # assert, assume, cover
     expression: str
@@ -29,6 +34,8 @@ class FormalProperty:
 
 
 @dataclass
+
+# ── class FormalCheckConfig: ──
 class FormalCheckConfig:
     module_name: str
     depth: int = 20
@@ -42,6 +49,7 @@ class FormalCheckConfig:
         lines.append(f"[options]")
         lines.append(f"mode bmc")
         lines.append(f"depth {self.depth}")
+        # ---
         lines.append(f"")
         lines.append(f"[engines]")
         lines.append(f"{self.engine}")
@@ -92,9 +100,11 @@ class FormalCheckConfig:
 
         lines.append(f"endmodule")
         lines.append(f"`endif // FORMAL")
+        # ---
         return "\n".join(lines)
 
 
+# ── FormalChecker ──
 class FormalChecker:
     """Generate formal verification properties from RTL analysis."""
 
@@ -108,6 +118,7 @@ class FormalChecker:
         self.clock_signal = "clk"
         self.reset_signal = "rst_n"
 
+        # Check condition
         if rtl_path and os.path.exists(rtl_path):
             with open(rtl_path) as f:
                 self.rtl_content = f.read()
@@ -142,6 +153,7 @@ class FormalChecker:
         # Always blocks
         block_pat = re.compile(
             r'always\s*@\s*\((.*?)\)\s*(?:\*|\+|)\s*begin\s*(.*?)\s*end',
+            # ---
             re.IGNORECASE | re.DOTALL
         )
         self.always_blocks = [m.group() for m in block_pat.finditer(content)]
@@ -167,6 +179,7 @@ class FormalChecker:
         reg_assign_pat = re.compile(
             r'(\w+)\s*<=\s*(.+?);',
             re.IGNORECASE
+        # ---
         )
         regs = []
         for m in reg_assign_pat.finditer(content):
@@ -192,6 +205,7 @@ class FormalChecker:
         for name, info in self.signals.items():
             if info["direction"] == "output":
                 props.append(FormalProperty(
+                    # ---
                     name=f"{name}_driven",
                     kind="cover",
                     expression=f"$rose({name}) || $fell({name})",
@@ -217,6 +231,7 @@ class FormalChecker:
         case_pat = re.compile(
             r'case\s*\((\w+)\)\s*(.*?)\s*endcase',
             re.IGNORECASE | re.DOTALL
+        # ---
         )
         for m in case_pat.finditer(content):
             case_var = m.group(1)
@@ -242,6 +257,7 @@ class FormalChecker:
                         category="reachability",
                         description=f"FSM state {state} reachable",
                     ))
+# ---
 
         # 5. Overflow/underflow for arithmetic
         if any(op in content for op in ['+', '-']):
@@ -267,6 +283,7 @@ class FormalChecker:
             depth=depth,
             engine=engine,
             properties=props,
+            # ---
             rtl_files=[self.rtl_path] if self.rtl_path else [],
         )
         return config
@@ -292,6 +309,7 @@ class FormalChecker:
         lines.append(f"  - Covers: {sum(1 for p in config.properties if p.kind == 'cover')}")
         lines.append("")
         lines.append("### Properties")
+        # ---
         lines.append("")
         lines.append("| # | Name | Kind | Category | Expression |")
         lines.append("|---|------|------|----------|------------|")
@@ -310,6 +328,7 @@ class FormalChecker:
         return "\n".join(lines)
 
 
+# ── main ──
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="Formal Property Check Generator")
@@ -317,6 +336,7 @@ def main():
     parser.add_argument("--depth", type=int, default=20, help="Formal depth")
     parser.add_argument("--engine", default="smtbmc", help="Formal engine")
     parser.add_argument("--output-sva", help="Output SVA file", default="")
+    # ---
     parser.add_argument("--output-sby", help="Output .sby file", default="")
     parser.add_argument("--output-report", help="Output report file", default="")
 
@@ -342,6 +362,7 @@ def main():
         with open(args.output_sby, "w") as f:
             f.write(sby)
         print(f"[OK] .sby written to {args.output_sby}")
+# ---
 
     if args.output_report:
         report = checker.generate_report(config)

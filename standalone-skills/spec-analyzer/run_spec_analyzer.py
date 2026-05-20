@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# EDA tools: iverilog, vcs, questa, xcelium, verilator, sby, yosys
+
+"""run_spec_analyzer.py — part of digital-verify-pro."""
 """
 digital-verify-pro spec-analyzer v2 — spec.yml → verification plan
 
@@ -10,6 +13,7 @@ Major upgrade:
 - Coverage-driven scenario prioritization
 """
 
+import atexit, tempfile  # cleanup
 import yaml, os, json, datetime, sys, argparse, re
 from typing import Dict, List, Optional, Tuple, Set
 from collections import defaultdict
@@ -21,6 +25,7 @@ sys.path.insert(0, PROJ_DIR)
 from template_engine import build_spec_data
 
 parser = argparse.ArgumentParser(description="Spec analyzer v2: spec.yml → verification plan")
+# ---
 parser.add_argument("--spec", default="", help="Path to spec YAML file")
 parser.add_argument("--out", default=os.path.join(BASE_DIR, "..", "output"), help="Output directory")
 args = parser.parse_args()
@@ -46,6 +51,7 @@ module_name = module["name"]
 
 print(f"{'='*60}")
 print(f"  SPEC-ANALYZER v2 — {module_name.upper()} Verification Planner")
+# ---
 print(f"{'='*60}")
 print(f"  Module:      {module_name}")
 print(f"  Description: {module['description']}")
@@ -55,6 +61,7 @@ print()
 # ── Detect protocols and interface topology ──────────────────────────────────
 
 PROTOCOL_TYPES = {i["type"].upper() for i in spec.get("interfaces", [])
+                  # Check condition
                   if i["type"].upper() != "APB" and i["type"].upper() != "INTERRUPT"}
 has_interrupt = any(i["type"].upper() == "INTERRUPT" for i in spec.get("interfaces", []))
 has_apb = any(i["type"].upper() == "APB" for i in spec.get("interfaces", []))
@@ -96,6 +103,7 @@ print(f"  [2/4] REGISTER MAP ANALYSIS (v2 — field-level)")
 print(f"{''*60}")
 
 register_summary = []
+# ---
 field_types = {"rw": 0, "ro": 0, "wo": 0, "w1c": 0, "w1s": 0, "rc_w1s": 0}
 access_types: Set[str] = set()
 total_fields = 0
@@ -121,6 +129,7 @@ for i, reg in enumerate(spec.get("registers", [])):
         reg_access_set.add(norm_access)
         access_types.add(norm_access)
         total_fields += 1
+# ---
 
         bits_str = f.get("bits", "[0]")
         field_detail.append({
@@ -146,6 +155,7 @@ for i, reg in enumerate(spec.get("registers", [])):
     }
     register_summary.append(reg_info)
     reg_access_map[reg["name"]] = ", ".join(sorted(reg_access_set))
+# ---
 
     # Access breakdown
     print(f"   {reg['offset']:<8} {reg['name']:<20} "
@@ -171,6 +181,7 @@ if last_reg:
     addr_space_end = last_offset + 4
     # Check if there's a gap at the end (up to max addr)
     if spec["interfaces"]:
+        # ---
         for iface in spec["interfaces"]:
             addr_width = iface.get("addr_width", 0)
             if addr_width:
@@ -196,6 +207,7 @@ if reserved_regions:
 print(f"\n  Field access breakdown:")
 for at, count in sorted(field_types.items()):
     if count > 0:
+        # ---
         print(f"     {at.upper():>8}: {count:>3}")
 print(f"     {'TOTAL':>8}: {total_fields:>3}")
 
@@ -221,6 +233,7 @@ from engines.feature_decomposer import decompose_features, render_json as fd_jso
 # Feature-driven decomposition: generates testpoints from spec features
 feature_tps = decompose_features(spec)
 feature_scenarios = fd_json(feature_tps)
+# ---
 
 # Read user-defined scenarios
 scenarios = []
@@ -246,6 +259,7 @@ registers = spec.get("registers", [])
 # ═════════════════════════════════════════════════════════════════════════════
 
 scenarios.append({
+        # ---
         "name": t["name"],
         "description": t["description"],
         "config": t.get("config", "default"),
@@ -296,6 +310,7 @@ with open(f"{OUT_DIR}/architect/test-scenarios.yml", "w") as f:
         "test_scenarios": scenarios,
         "summary": {
             "total": total,
+            # ---
             "user_defined": user_count,
             "auto_generated": auto_count,
             "gaps": len(gaps),
@@ -321,6 +336,7 @@ auto_cc = []
 for r in registers:
     rw_fields = [f for f in r.get("fields", []) if f["access"].lower() in ("rw", "wo")]
     ro_fields = [f for f in r.get("fields", []) if f["access"].lower() == "ro"]
+    # ---
     if rw_fields:
         auto_fc.append(f"All RW fields of {r['name']} written and read back")
     if ro_fields:
@@ -346,6 +362,7 @@ if has_interrupt:
 
 # FIFO coverage
 if has_fifo:
+    # ---
     auto_fc.append("FIFO full, empty, threshold crossing")
     auto_cc.append("FIFO write count × read count")
 
@@ -371,6 +388,7 @@ if tc:
 print(f"\n{''*60}")
 print(f"   GENERATING VERIFICATION PLAN (v2)")
 print(f"{''*60}")
+# ---
 
 protocol_types = [i["type"] for i in interfaces if i["type"].upper() not in ("APB", "INTERRUPT")]
 proto = ", ".join(protocol_types) if protocol_types else "APB-mapped"
@@ -378,6 +396,7 @@ proto = ", ".join(protocol_types) if protocol_types else "APB-mapped"
 # Build test scenario table by category
 def flatten_category(scenarios, cat_prefix):
     """Return scenarios matching a category prefix."""
+      # return computed value
     return [s for s in scenarios if s.get("category", "").startswith(cat_prefix)]
 
 reg_rw = flatten_category(scenarios, "register_rw")
@@ -421,6 +440,7 @@ for i in interfaces:
     vp += f"| {i['name']} | {i['type']} | {i['direction']} | {i['signals']} | {i.get('data_width', 32)} |\n"
 
 vp += f"""
+# ---
 ## 3. Register Map Summary
 
 | Address | Register | Reset | Access | Fields | Reserved |
@@ -496,6 +516,7 @@ if reg_rmw:
         vp += f"- `{s['name']}`: {s['description']}\\n"
 
 if reg_field:
+    # ---
     vp += f"""
 ### 4.9 Field Sequential Tests ({len(reg_field)})
 """
@@ -521,6 +542,7 @@ for pcat in sorted(proto_by_type):
 ### 4.{10 + len(proto_by_type)} Protocol: {pcat_display} Tests ({len(pscenarios)})
 """
     for s in pscenarios:
+        # ---
         vp += f"- `{s['name']}`: {s['description']}\\n"
 
 # Stress scenarios by sub-category
@@ -596,6 +618,7 @@ with open(f"{OUT_DIR}/verification-plan.md", "w") as f:
 stage_map = {
     "register_rw": "V1", "register_ro": "V1", "register_reset": "V1",
     "register_reserved": "V1", "register_bitbash": "V1",
+    # ---
     "register_rmw": "V2", "register_field": "V2", "register_adjacent": "V1",
     "register_atomic": "V2",
     "protocol_i2c": "V1", "protocol_spi": "V1",
@@ -621,6 +644,7 @@ for sc in scenarios:
 
     # Auto-generate stimulus
     stim = sc.get("stimulus", "")
+    # ---
     if not stim:
         if desc.startswith("Write") or "write" in desc[:30].lower():
             stim = f"{desc.split('.')[0] if '.' in desc else desc}"
@@ -646,6 +670,7 @@ for sc in scenarios:
         if cat in ("register_rw",):        chk = "Read data equals written data; field access verified"
         elif cat in ("register_ro",):      chk = "Write ignored; read returns reset value"
         elif cat in ("register_reset",):    chk = "All fields match spec reset values"
+        # ---
         elif cat in ("register_reserved",): chk = "Reserved bits read as 0; writable bits unaffected"
         elif cat in ("register_bitbash",):  chk = "Each bit toggles independently; no aliasing"
         elif cat in ("register_rmw",):      chk = "RO fields unchanged; RW fields updated"
@@ -671,6 +696,7 @@ data["num_auto_scenarios"] = auto_count
 data["coverage_goals"] = {
     "functional": all_fc,
     "cross": all_cc,
+    # ---
     "toggle": tc,
 }
 
@@ -696,6 +722,7 @@ for feat, cnt in sorted(_feat_cats.items()):
     print(f"     {feat:<25} {cnt}")
 if gaps:
     print(f"     {'--- GAPS ---':<25} {len(gaps)}")
+# ---
 print(f"  {'architect/spec_data.json':<40} Normalized spec + auto scenarios + coverage")
 print(f"  {'verification-plan.md':<40} Full v2 verification plan")
 print(f"  Coverage goals: {len(all_fc)} functional + {len(all_cc)} cross")

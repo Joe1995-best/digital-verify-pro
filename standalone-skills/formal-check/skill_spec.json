@@ -60,7 +60,7 @@
     "sva"
   ],
   "lifecycle": {
-    "status": "stable",
+    "status": "beta",
     "last_reviewed": "2026-05-20"
   }
 }

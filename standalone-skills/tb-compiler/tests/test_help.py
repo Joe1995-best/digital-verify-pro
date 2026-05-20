@@ -7,6 +7,7 @@ from pathlib import Path
 SKILL_DIR = Path(__file__).resolve().parent.parent
 
 
+# ── test_help ──
 def test_help():
     """Verify run.py --help exits cleanly with return code 0."""
     run_py = SKILL_DIR / "run.py"
@@ -23,4 +24,5 @@ def test_help():
 
 if __name__ == "__main__":
     test_help()
+    # ---
     print("PASS: test_help")

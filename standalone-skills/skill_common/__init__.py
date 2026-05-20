@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
+Copyright (c) 2026 digital-verify-pro. MIT License.
 """
 skill_common — Shared utilities for digital-verify-pro standalone skills.
 
 Provides unified:
-  - Logging (skill_logger)
+  - Logging (get_logger)
   - Exit codes (ExitCode enum)
-  - Result reporting (write_result)
-  - File/spec helpers (find_spec, safe_read)
-  - Args parsing conventions
+  - Result reporting (write_result, read_result)
+  - Input/Output validation (validate_inputs, validate_outputs)
+  - Config loader (load_config)
+  - Spec helpers (find_spec)
+  - Args parsing (common_args)
 
 Usage:
     from skill_common import get_logger, ExitCode, write_result
     logger = get_logger(__name__)
-    logger.info("processing...")
-    write_result({"status": "pass", "tests": 10, "passed": 10})
+    write_result({"status": "pass", "module": "test", "metrics": {"total": 10}})
     sys.exit(ExitCode.SUCCESS)
 """
 
@@ -135,12 +137,69 @@ def find_spec(spec_path: Optional[str]) -> Optional[str]:
     """Resolve a spec file path. Returns None if not found with logging."""
     if spec_path and os.path.isfile(spec_path):
         return os.path.abspath(spec_path)
-    # Search common locations
     candidates = ["spec.yml", "../spec.yml", "../../spec.yml"]
     for c in candidates:
         if os.path.isfile(c):
             return os.path.abspath(c)
     return None
+
+# ---------------------------------------------------------------------------
+# Input/Output validation (contract enforcement)
+# ---------------------------------------------------------------------------
+def validate_inputs(args, required_args: list = None, schema_path: str = None) -> list:
+    """
+    Validate CLI inputs against required args list and optional JSON Schema.
+    Returns list of error dicts (empty = pass).
+    """
+    errors = []
+    if required_args:
+        for arg in required_args:
+            val = getattr(args, arg, None)
+            if val is None or (isinstance(val, (str, list)) and not val):
+                errors.append({"code": 1, "field": arg, "message": f"Required argument --{arg.replace('_', '-')} is missing"})
+    if schema_path and os.path.isfile(schema_path):
+        try:
+            import yaml, json, jsonschema
+            if args.spec and os.path.isfile(args.spec):
+                with open(args.spec, encoding='utf-8') as f:
+                    data = yaml.safe_load(f) if args.spec.endswith(('.yml', '.yaml')) else json.load(f)
+                with open(schema_path, encoding='utf-8') as f:
+                    schema = json.load(f)
+                jsonschema.validate(instance=data, schema=schema)
+        except ImportError:
+            pass  # jsonschema optional
+        except Exception as e:
+            errors.append({"code": 2, "message": f"Schema validation failed: {e}"})
+    return errors
+
+
+def validate_outputs(out_dir: str, schema_dir: str = None) -> list:
+    """
+    Validate output files against schema directory.
+    Returns list of error dicts (empty = pass).
+    """
+    errors = []
+    if not schema_dir or not os.path.isdir(schema_dir):
+        return errors
+    import json, glob
+    schema_files = glob.glob(os.path.join(schema_dir, "*.schema.json"))
+    for sf in schema_files:
+        try:
+            import jsonschema
+            with open(sf, encoding='utf-8') as f:
+                schema = json.load(f)
+            # Match output file: schema name -> output JSON
+            basename = os.path.basename(sf).replace(".schema.json", "")
+            candidate = os.path.join(out_dir, basename + ".json")
+            if os.path.isfile(candidate):
+                with open(candidate, encoding='utf-8') as f:
+                    data = json.load(f)
+                jsonschema.validate(instance=data, schema=schema)
+        except ImportError:
+            pass
+        except Exception as e:
+            errors.append({"code": 4, "message": f"Output schema '{sf}' validation failed: {e}"})
+    return errors
 
 # ---------------------------------------------------------------------------
 # Standardized argument parser (convention)

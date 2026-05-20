@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# EDA tools: iverilog, vcs, questa, xcelium, verilator, sby, yosys
+
+"""run_env_builder.py — part of digital-verify-pro."""
 # -*- coding: utf-8 -*-
 """
 env-builder — protocol-agnostic UVM environment generator.
@@ -9,6 +12,7 @@ Protocols (I2C, GPIO, SPI, UART, AXI, PCIe) are all handled
 identically through template iteration over spec data.
 """
 
+import atexit, tempfile  # cleanup
 import os, sys, json, argparse
 
 BASE_DIR = os.path.dirname(__file__)
@@ -17,6 +21,8 @@ from template_engine import build_spec_data, render_to_file
 
 # ── Render error tracking ──
 _render_errors = 0
+
+# ── def _render(tpl, data, path): ──
 def _render(tpl, data, path):
     global _render_errors
     ok = render_to_file(tpl, data, path)

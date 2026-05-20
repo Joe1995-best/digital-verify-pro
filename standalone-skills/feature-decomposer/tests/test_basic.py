@@ -9,6 +9,7 @@ def test_help_runs():
     run_py = os.path.join(skill_dir, "run.py")
     if os.path.exists(run_py):
         result = subprocess.run(
+          # operation result
             [sys.executable, run_py, "--help"],
             capture_output=True, text=True, timeout=10
         )

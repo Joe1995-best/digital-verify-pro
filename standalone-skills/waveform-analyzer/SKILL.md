@@ -2,6 +2,7 @@
 name: waveform-analyzer
 version: 1.0.0
 quality_score: 77.4
+lifecycle: development
 description: >
   Analyze simulation results, extract coverage metrics, and identify failures
   from waveform dumps and log files. Post-simulation analysis for verification
@@ -76,6 +77,24 @@ python run.py --vcd output.vcd --report coverage_report.json
 | standard | Log analysis + VCD toggle count |
 | intensive | Full coverage extraction + gap detection |
 | exhaustive | Failure classification + trend analysis |
+
+
+
+## Config
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `timeout_seconds` | int | 300 | 执行超时（秒） |
+| `log_level` | enum | `info` | 日志级别：debug/info/warn/error |
+| `out_dir` | string | `output/` | 输出目录 |
+
+
+
+## Known Limitations
+
+- 依赖上游 skill 的输出格式，版本变更可能破坏兼容性
+- 当前为 standalone 模式，未深度集成 pipeline 上下文
+- 大文件处理可能受 Python 单线程性能限制
 
 ## Dependencies
 

@@ -1,0 +1,16 @@
+# minimal spec for test
+module_name: test_module
+version: 1.0
+interfaces:
+  - name: host_if
+    protocol: apb_slave
+    direction: slave
+    signals:
+      - {name: paddr, width: 12, direction: input}
+      - {name: pwrite, width: 1, direction: input}
+      - {name: pwdata, width: 32, direction: input}
+      - {name: prdata, width: 32, direction: output}
+features:
+  - name: smoke_test
+    description: Basic smoke test
+    category: smoke

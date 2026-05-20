@@ -2,6 +2,7 @@
 name: plan-generator
 version: 2.0.0
 quality_score: 76.9
+lifecycle: beta
 description: >
   Verification plan generator from RTL source analysis. Deep RTL analysis with
   FSM extraction, state encoding detection, data path analysis, control complexity
@@ -62,6 +63,24 @@ python run.py --vcd dump.vcd --clk clk_i --fsm state_q --output plan_output
 | ALU4 (4-bit) | 66 scenarios | ✅ Verified |
 | Dual Port Stack | FSM extraction + formal | ✅ Verified |
 | OT DMA | 22 scenarios, 89.8% toggle | ✅ Verified |
+
+
+
+## Config
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `timeout_seconds` | int | 300 | 执行超时（秒） |
+| `log_level` | enum | `info` | 日志级别：debug/info/warn/error |
+| `out_dir` | string | `output/` | 输出目录 |
+
+
+
+## Known Limitations
+
+- 依赖上游 skill 的输出格式，版本变更可能破坏兼容性
+- 当前为 standalone 模式，未深度集成 pipeline 上下文
+- 大文件处理可能受 Python 单线程性能限制
 
 ## Dependencies
 

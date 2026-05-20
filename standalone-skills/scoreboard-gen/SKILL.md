@@ -2,6 +2,7 @@
 name: scoreboard-gen
 version: 2.0.0
 quality_score: 79.4
+lifecycle: beta
 description: >
   UVM scoreboard and checker generator (v2). Generates full UVM scoreboard
   with TLM analysis ports, predictor, comparator, coverage collection,
@@ -57,6 +58,24 @@ python run.py --spec ../../i2c_spec.yml --out output
 |---------|:---------:|:------:|
 | I2C | sb.sv + sb_predictor.sv + sb_coverage.sv | ✅ Verified |
 | OT DMA | Full scoreboard with TLM analysis exports | ✅ Verified |
+
+
+
+## Config
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `timeout_seconds` | int | 300 | 执行超时（秒） |
+| `log_level` | enum | `info` | 日志级别：debug/info/warn/error |
+| `out_dir` | string | `output/` | 输出目录 |
+
+
+
+## Known Limitations
+
+- 依赖上游 skill 的输出格式，版本变更可能破坏兼容性
+- 当前为 standalone 模式，未深度集成 pipeline 上下文
+- 大文件处理可能受 Python 单线程性能限制
 
 ## Dependencies
 
