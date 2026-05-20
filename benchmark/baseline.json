@@ -1,0 +1,23 @@
+{
+  "description": "Baseline performance measurements for VCD parse benchmark",
+  "recorded": "2026-05-20",
+  "environment": {
+    "host": "WIN-20240825PCZ",
+    "python": "3.14",
+    "os": "Windows_NT 10.0.19045"
+  },
+  "benchmarks": {
+    "vcd_parse_dma_full_test": {
+      "file": "dma_full_test.vcd",
+      "size_bytes": 579926,
+      "median_time_sec": 0.350,
+      "unit": "seconds"
+    },
+    "vcd_parse_i2c": {
+      "file": "i2c.vcd",
+      "size_bytes": 5155,
+      "median_time_sec": 0.020,
+      "unit": "seconds"
+    }
+  }
+}

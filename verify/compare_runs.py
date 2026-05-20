@@ -5,11 +5,14 @@ compare_runs.py — 回归结果对比工具
 用法：
   python compare_runs.py --run-a runs/run_20260520_093000 --run-b runs/run_20260520_100000
   python compare_runs.py --latest  # 对比最近两轮
+  python compare_runs.py --baseline run_20260520_090000  # 与指定基线对比
 """
-import os, sys, json, argparse
+import os, sys, json, argparse, shutil
 from pathlib import Path
 
 RUNS_DIR = Path(__file__).parent / "runs"
+BASELINE_DIR = Path(__file__).parent / ".baseline"
+BASELINE_META_FILE = "baseline_meta.json"
 
 
 def load_run(run_name: str):
@@ -23,6 +26,23 @@ def load_run(run_name: str):
         return json.load(f)
 
 
+def load_baseline(name: str):
+    """加载一个基线结果"""
+    base_dir = BASELINE_DIR / name
+    # First try results.json
+    results_file = base_dir / "results.json"
+    if results_file.exists():
+        with open(results_file, encoding="utf-8") as f:
+            return json.load(f), "results"
+    # Fallback to baseline_meta.json
+    meta_file = base_dir / BASELINE_META_FILE
+    if meta_file.exists():
+        with open(meta_file, encoding="utf-8") as f:
+            return json.load(f), "meta"
+    print(f"[ERROR] No baseline data found in {base_dir}")
+    sys.exit(1)
+
+
 def get_latest_runs(n=2):
     """获取最近 n 轮回归的目录名"""
     if not RUNS_DIR.exists():
@@ -33,6 +53,30 @@ def get_latest_runs(n=2):
         reverse=True
     )
     return runs[:n]
+
+
+def save_baseline(run_name: str, run_data: dict):
+    """将一轮结果保存为基线"""
+    base_dir = BASELINE_DIR / run_name
+    base_dir.mkdir(parents=True, exist_ok=True)
+
+    # Save full results
+    dest = base_dir / "results.json"
+    with open(dest, "w", encoding="utf-8") as f:
+        json.dump(run_data, f, indent=2, ensure_ascii=False)
+
+    # Save metadata
+    meta = {
+        "run_id": run_data.get("run_id", run_name),
+        "timestamp": run_data.get("timestamp", ""),
+        "saved_at": Path(dest).stat().st_mtime,
+        "origin_run": run_name,
+    }
+    meta_path = base_dir / BASELINE_META_FILE
+    with open(meta_path, "w", encoding="utf-8") as f:
+        json.dump(meta, f, indent=2)
+
+    print(f"[OK] Baseline saved: {base_dir}")
 
 
 def compare(run_a, run_b):
@@ -113,11 +157,39 @@ def print_comparison(result):
 
 
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser(description="Compare two regression runs")
+    ap = argparse.ArgumentParser(description="Compare two regression runs or compare against baseline")
     ap.add_argument("--run-a", help="First run (default: latest-1)")
     ap.add_argument("--run-b", help="Second run (default: latest)")
     ap.add_argument("--latest", action="store_true", help="Compare latest two runs")
+    ap.add_argument("--baseline", help="Compare current run against a named baseline")
+    ap.add_argument("--save-baseline", help="Save a run as baseline (e.g. run_20260520_090000)")
+    ap.add_argument("--current", help="Current run to compare against baseline (default: latest)")
     args = ap.parse_args()
+
+    # Handle --save-baseline
+    if args.save_baseline:
+        run_data = load_run(args.save_baseline)
+        save_baseline(args.save_baseline, run_data)
+        sys.exit(0)
+
+    # Handle --baseline: compare current run against saved baseline
+    if args.baseline:
+        baseline_data, source = load_baseline(args.baseline)
+        current_name = args.current or get_latest_runs(1)[0]
+        print(f"Loading baseline: {args.baseline}  (from {source})")
+        print(f"Loading current:  {current_name}")
+        run_current = load_run(current_name)
+
+        print(f"\n=== 基线对比: {args.baseline} (baseline) ↔ {current_name} (current) ===\n")
+
+        # Adapt baseline data to have same structure as run data
+        if source == "meta" and "cases" not in baseline_data:
+            print("[WARN] Baseline metadata doesn't contain case-level data; only run-level info available.")
+            print(json.dumps(baseline_data, indent=2))
+        else:
+            result = compare(baseline_data, run_current)
+            print_comparison(result)
+        sys.exit(0)
 
     if args.latest or (not args.run_a and not args.run_b):
         runs = get_latest_runs(2)

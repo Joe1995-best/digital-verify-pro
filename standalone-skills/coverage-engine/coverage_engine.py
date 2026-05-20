@@ -352,6 +352,78 @@ class ToggleInfo:
             return f"100% ({grade}, {self.toggle_rate}x)"
 
 
+# ── class ToggleAnalyzer: ──
+class ToggleAnalyzer:
+    """Standalone toggle analysis for a single signal."""
+
+    @dataclass
+    class ToggleResult:
+        signal: str
+        width: int
+        transitions: int = 0
+        is_stuck: bool = True
+        activity: str = "NONE"
+        toggle_0_to_1: int = 0
+        toggle_1_to_0: int = 0
+
+    def analyze_signal(self, signal_name: str, width: int, values: list) -> "ToggleAnalyzer.ToggleResult":
+        """Analyze a single signal's toggle behavior.
+
+        Args:
+            signal_name: Name of the signal
+            width: Bit width of the signal
+            values: List of sampled values (str or int)
+
+        Returns:
+            ToggleResult with transitions count, stuck flag, and activity grade
+        """
+        if len(values) <= 1:
+            return self.ToggleResult(signal=signal_name, width=width)
+
+        transitions = 0
+        toggle_0_to_1 = 0
+        toggle_1_to_0 = 0
+
+        for i in range(1, len(values)):
+            prev = str(values[i - 1])
+            curr = str(values[i])
+            if prev in ("x", "z") or curr in ("x", "z"):
+                continue
+            for bit in range(min(len(prev), len(curr))):
+                pb = prev[-(bit + 1)]
+                cb = curr[-(bit + 1)]
+                if pb == "0" and cb == "1":
+                    toggle_0_to_1 += 1
+                    transitions += 1
+                elif pb == "1" and cb == "0":
+                    toggle_1_to_0 += 1
+                    transitions += 1
+
+        total_toggles = toggle_0_to_1 + toggle_1_to_0
+        is_stuck = total_toggles == 0
+
+        if total_toggles == 0:
+            activity = "NONE"
+        elif total_toggles <= 3:
+            activity = "LOW"
+        elif total_toggles <= 10:
+            activity = "MEDIUM"
+        elif total_toggles <= 50:
+            activity = "HIGH"
+        else:
+            activity = "VERY_HIGH"
+
+        return self.ToggleResult(
+            signal=signal_name,
+            width=width,
+            transitions=transitions,
+            is_stuck=is_stuck,
+            activity=activity,
+            toggle_0_to_1=toggle_0_to_1,
+            toggle_1_to_0=toggle_1_to_0,
+        )
+
+
 @dataclass
 
 # ── class FSMStateInfo: ──
