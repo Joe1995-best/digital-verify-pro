@@ -46,7 +46,9 @@ def main(argv=None) -> int:
     try:
                 from run_formal import main as formal_main
         formal_main()
-        result = {"status": "pass", "summary": ""Formal check complete""}
+        rf = out_dir / "formal_report.md"
+        result = {"status": "pass" if rf.exists() else "skip", "summary": f"Formal: report={'yes' if rf.exists() else 'no'}",
+                   "metrics": {"report": rf.exists()}, "outputs": {"formal_report": str(rf)}}
     except Exception as e:
         logger.exception("Runtime error")
         write_result(status="error", module="formal-check",

@@ -46,7 +46,10 @@ def main(argv=None) -> int:
     try:
                 from run_ral_gen import main as ral_main
         ral_main()
-        result = {"status": "pass", "summary": ""RAL model generated""}
+        ral_dir = out_dir / "rtl/verification/env/ral"
+        ral_files = list(ral_dir.rglob("*.sv")) if ral_dir.exists() else []
+        result = {"status": "pass", "summary": f"RAL model: {len(ral_files)} registers",
+                   "metrics": {"ral_files": len(ral_files)}, "outputs": {"dir": str(out_dir)}}
     except Exception as e:
         logger.exception("Runtime error")
         write_result(status="error", module="regmodel-gen",

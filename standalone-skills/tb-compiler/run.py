@@ -46,7 +46,9 @@ def main(argv=None) -> int:
     try:
                 from run_tb_compile import main as tb_main
         tb_main()
-        result = {"status": "pass", "summary": ""Compilation complete""}
+        cl = out_dir / "compile.log"
+        result = {"status": "pass", "summary": f"Compile: log={cl.stat().st_size}B" if cl.exists() else "Compile complete",
+                   "metrics": {"log_bytes": cl.stat().st_size if cl.exists() else 0}, "outputs": {"compile_log": str(cl)}}
     except Exception as e:
         logger.exception("Runtime error")
         write_result(status="error", module="tb-compiler",

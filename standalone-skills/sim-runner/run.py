@@ -46,7 +46,9 @@ def main(argv=None) -> int:
     try:
                 from run_sim import main as sim_main
         sim_main()
-        result = {"status": "pass", "summary": ""Simulation complete""}
+        ld = out_dir / "logs"; lf = list(ld.glob("*.log")) if ld.exists() else []
+        result = {"status": "pass", "summary": f"Sim: {len(lf)} logs",
+                   "metrics": {"log_files": len(lf)}, "outputs": {"log_dir": str(ld)}}
     except Exception as e:
         logger.exception("Runtime error")
         write_result(status="error", module="sim-runner",

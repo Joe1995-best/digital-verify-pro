@@ -52,7 +52,21 @@ def main(argv=None) -> int:
         report = engine.analyze()
         report_path = out_dir / args.report
         report_path.write_text(json.dumps(report.to_dict(), indent=2))
-        result = {"status": "pass", "summary": "f"{report.total_signals} signals, {report.toggle_coverage:.1f}% toggle, {report.stuck_signals} stuck""}
+        report_dict = report.to_dict() if hasattr(report, 'to_dict') else {}
+        result = {
+            "status": "pass",
+            "summary": f"{report.total_signals} signals, {report.toggle_coverage:.1f}% toggle, {report.stuck_signals} stuck",
+            "metrics": {
+                "total_signals": report.total_signals,
+                "toggle_coverage_percent": report.toggle_coverage,
+                "stuck_signals": report.stuck_signals,
+                "duration_seconds": getattr(report, 'duration', 0),
+            },
+            "outputs": {
+                "coverage_report": str(report_path) if 'report_path' in dir() else "",
+                "result_json": str(result_path) if 'result_path' in dir() else "",
+            }
+        }
     except Exception as e:
         logger.exception("Runtime error")
         write_result(status="error", module="coverage-engine",

@@ -46,7 +46,9 @@ def main(argv=None) -> int:
     try:
                 from run_doc_gen import main as doc_main
         doc_main()
-        result = {"status": "pass", "summary": ""Documentation generated""}
+        md = list(out_dir.rglob("*.md")) if out_dir.exists() else []
+        result = {"status": "pass", "summary": f"Docs: {len(md)} files",
+                   "metrics": {"doc_files": len(md)}, "outputs": {"dir": str(out_dir)}}
     except Exception as e:
         logger.exception("Runtime error")
         write_result(status="error", module="doc-gen",

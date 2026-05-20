@@ -46,7 +46,9 @@ def main(argv=None) -> int:
     try:
                 from run_coverage_plan import main as cp_main
         cp_main()
-        result = {"status": "pass", "summary": ""Coverage plan generated""}
+        cov_files = list(out_dir.rglob("cov_*.sv")) if out_dir.exists() else []
+        result = {"status": "pass", "summary": f"Coverage plan: {len(cov_files)} groups",
+                   "metrics": {"covergroups": len(cov_files)}, "outputs": {"dir": str(out_dir)}}
     except Exception as e:
         logger.exception("Runtime error")
         write_result(status="error", module="coverage-plan",

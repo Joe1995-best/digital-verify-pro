@@ -46,7 +46,9 @@ def main(argv=None) -> int:
     try:
                 from run_env_builder import main as env_main
         env_main()
-        result = {"status": "pass", "summary": ""UVM environment generated""}
+        sv_files = list(out_dir.rglob("*.sv")) if out_dir.exists() else []
+        result = {"status": "pass", "summary": f"UVM env: {len(sv_files)} SV files",
+                   "metrics": {"sv_files": len(sv_files)}, "outputs": {"dir": str(out_dir)}}
     except Exception as e:
         logger.exception("Runtime error")
         write_result(status="error", module="env-builder",

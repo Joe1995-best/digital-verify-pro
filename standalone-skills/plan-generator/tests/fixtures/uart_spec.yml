@@ -1,0 +1,39 @@
+# UART test fixture
+module_name: uart
+version: 1.0
+interfaces:
+  - name: host_if
+    protocol: apb_slave
+    direction: slave
+    signals:
+      - {name: paddr,   width: 4,  direction: input}
+      - {name: pwrite,  width: 1,  direction: input}
+      - {name: pwdata,  width: 32, direction: input}
+      - {name: prdata,  width: 32, direction: output}
+  - name: uart_if
+    protocol: uart
+    direction: master
+    signals:
+      - {name: tx, width: 1, direction: output}
+      - {name: rx, width: 1, direction: input}
+registers:
+  - name: tx_data
+    offset: 0x00
+    size: 8
+    fields:
+      - {name: data, bits: [7:0], access: wo, reset: x}
+  - name: rx_data
+    offset: 0x04
+    size: 8
+    fields:
+      - {name: data, bits: [7:0], access: ro, reset: 0}
+  - name: status
+    offset: 0x08
+    size: 8
+    fields:
+      - {name: busy, bit: 0, access: ro, reset: 0}
+      - {name: done, bit: 1, access: ro, reset: 0}
+features:
+  - name: smoke
+    description: Basic smoke
+    category: smoke

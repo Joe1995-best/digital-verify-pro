@@ -46,7 +46,8 @@ def main(argv=None) -> int:
     try:
                 from feature_decomposer import main as fd_main
         fd_main()
-        result = {"status": "pass", "summary": ""Decomposition complete""}
+        result = {"status": "pass", "summary": "Decomposition complete",
+                   "metrics": {}, "outputs": {"dir": str(out_dir)}}
     except Exception as e:
         logger.exception("Runtime error")
         write_result(status="error", module="feature-decomposer",

@@ -46,7 +46,9 @@ def main(argv=None) -> int:
     try:
                 from fsm_templates import main as fsm_main
         fsm_main()
-        result = {"status": "pass", "summary": ""FSM template generated""}
+        rtl = list(out_dir.rglob("*.sv")) if out_dir.exists() else []
+        result = {"status": "pass", "summary": f"FSM: {len(rtl)} files",
+                   "metrics": {"rtl_files": len(rtl)}, "outputs": {"dir": str(out_dir)}}
     except Exception as e:
         logger.exception("Runtime error")
         write_result(status="error", module="fsm-templates",

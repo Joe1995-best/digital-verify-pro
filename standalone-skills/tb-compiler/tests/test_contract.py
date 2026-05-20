@@ -1,33 +1,38 @@
-"""Contract tests for tb-compiler."""
+
+"""Contract tests for tb-compiler -- validate skill_spec.json, SKILL.md, config.yaml."""
 import sys, os, json
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-def test_skill_spec_exists():
+def test_skill_spec_full():
     path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "skill_spec.json")
     assert os.path.isfile(path)
     with open(path) as f:
         spec = json.load(f)
     assert "name" in spec
     assert "version" in spec
+    assert "interface" in spec
+    assert "lifecycle" in spec
+    assert "error_codes" in spec
 
-def test_skilmd_exists():
+def test_skilmd_has_config():
     path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "SKILL.md")
-    assert os.path.isfile(path)
-
-def test_config_yaml_exists():
-    path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.yaml")
-    assert os.path.isfile(path)
-
-def test_run_py_has_main():
-    path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "run.py")
     with open(path) as f:
         content = f.read()
-    assert "def main(" in content
-    assert "if __name__" in content
+    assert "## Config" in content
+    assert "## Known Limitations" in content
 
-def test_has_tests():
-    td = os.path.join(os.path.dirname(os.path.dirname(__file__)), "tests")
-    assert os.path.isdir(td)
-    assert os.path.isfile(os.path.join(td, "test_unit.py"))
-    assert os.path.isfile(os.path.join(td, "test_integration.py"))
-    assert os.path.isfile(os.path.join(td, "test_contract.py"))
+def test_config_yaml_valid():
+    import yaml
+    path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.yaml")
+    with open(path) as f:
+        cfg = yaml.safe_load(f)
+    assert "timeout_seconds" in cfg
+    assert "log_level" in cfg
+    assert "out_dir" in cfg
+
+def test_test_dirs_complete():
+    base = os.path.dirname(os.path.dirname(__file__))
+    for f in ("config.yaml", "schemas/input.schema.json", "schemas/result.schema.json",
+              "tests/test_unit.py", "tests/test_integration.py", "tests/test_contract.py",
+              "tests/fixtures/minimal_spec.yml"):
+        assert os.path.isfile(os.path.join(base, f)), f"Missing: {f}"

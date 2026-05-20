@@ -46,7 +46,10 @@ def main(argv=None) -> int:
     try:
                 from run_scoreboard_gen import main as sb_main
         sb_main()
-        result = {"status": "pass", "summary": ""Scoreboard generated""}
+        sb_dir = out_dir / "rtl/verification/env"
+        sb_files = list(sb_dir.rglob("sb*.sv")) if sb_dir.exists() else []
+        result = {"status": "pass", "summary": f"Scoreboard: {len(sb_files)} files",
+                   "metrics": {"sb_files": len(sb_files)}, "outputs": {"dir": str(out_dir)}}
     except Exception as e:
         logger.exception("Runtime error")
         write_result(status="error", module="scoreboard-gen",

@@ -47,7 +47,10 @@ def main(argv=None) -> int:
     try:
                 from dashboard_gen import main as dash_main
         dash_main()
-        result = {"status": "pass", "summary": ""Dashboard generated""}
+        dash = getattr(args, 'output', out_dir / "dashboard.html")
+        result = {"status": "pass", "summary": f"Dashboard: {os.path.getsize(dash)}B" if isinstance(dash, str) and os.path.isfile(dash) else "Dashboard",
+                   "metrics": {"size": os.path.getsize(dash) if isinstance(dash, str) and os.path.isfile(dash) else 0},
+                   "outputs": {"dashboard": str(dash)}}
     except Exception as e:
         logger.exception("Runtime error")
         write_result(status="error", module="dashboard-gen",

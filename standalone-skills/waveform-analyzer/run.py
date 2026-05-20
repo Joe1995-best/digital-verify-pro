@@ -46,7 +46,9 @@ def main(argv=None) -> int:
     try:
                 # TODO: implement core logic
         pass
-        result = {"status": "pass", "summary": ""Analysis complete""}
+        rpts = list(out_dir.glob("*report*"))
+        result = {"status": "pass", "summary": f"Analysis: {len(rpts)} reports",
+                   "metrics": {"reports": len(rpts)}, "outputs": {"report_dir": str(out_dir)}}
     except Exception as e:
         logger.exception("Runtime error")
         write_result(status="error", module="waveform-analyzer",

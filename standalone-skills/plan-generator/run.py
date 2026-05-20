@@ -46,7 +46,8 @@ def main(argv=None) -> int:
     try:
                 from plan_generator import main as plan_main
         plan_main()
-        result = {"status": "pass", "summary": ""Plan generated""}
+        result = {"status": "pass", "summary": "Plan generated",
+                   "metrics": {}, "outputs": {"dir": str(out_dir)}}
     except Exception as e:
         logger.exception("Runtime error")
         write_result(status="error", module="plan-generator",

@@ -46,7 +46,9 @@ def main(argv=None) -> int:
     try:
                 from run_spec_analyzer import main as spec_main
         spec_main()
-        result = {"status": "pass", "summary": ""Spec analysis complete""}
+        plan_files = list(out_dir.rglob("*.md")) if out_dir.exists() else []
+        result = {"status": "pass", "summary": f"Spec analysis: {len(plan_files)} outputs",
+                   "metrics": {"output_files": len(plan_files)}, "outputs": {"dir": str(out_dir)}}
     except Exception as e:
         logger.exception("Runtime error")
         write_result(status="error", module="spec-analyzer",

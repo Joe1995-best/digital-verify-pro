@@ -1,0 +1,47 @@
+# APB test fixture
+module_name: apb_gpio
+version: 1.0
+description: Minimal APB GPIO for integration testing
+interfaces:
+  - name: host_if
+    protocol: apb_slave
+    direction: slave
+    description: APB slave interface
+    signals:
+      - {name: paddr,   width: 12, direction: input}
+      - {name: pwrite,  width: 1,  direction: input}
+      - {name: pwdata,  width: 32, direction: input}
+      - {name: prdata,  width: 32, direction: output}
+      - {name: psel,    width: 1,  direction: input}
+      - {name: penable, width: 1,  direction: input}
+      - {name: pready,  width: 1,  direction: output}
+  - name: gpio_port
+    protocol: gpio
+    direction: output
+    description: GPIO output port
+    signals:
+      - {name: gpio, width: 8, direction: output}
+  - name: clk_rst
+    signals:
+      - {name: clk, width: 1, direction: input}
+      - {name: rst, width: 1, direction: input, polarity: active_low}
+registers:
+  - name: data_reg
+    offset: 0x00
+    size: 32
+    description: GPIO data register
+    fields:
+      - {name: data, bits: [7:0], access: rw, reset: 0}
+  - name: dir_reg
+    offset: 0x04
+    size: 32
+    description: GPIO direction register
+    fields:
+      - {name: dir, bits: [7:0], access: rw, reset: 0xFF}
+features:
+  - name: smoke
+    description: Basic smoke test
+    category: smoke
+  - name: register_rw
+    description: Register read/write
+    category: register

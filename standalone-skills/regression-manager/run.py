@@ -46,7 +46,9 @@ def main(argv=None) -> int:
     try:
                 from regression_manager import main as reg_main
         reg_main()
-        result = {"status": "pass", "summary": ""Regression tracked""}
+        result = {"status": "pass", "summary": "Regression tracked",
+                   "metrics": {"db": (out_dir/"regression_db.json").exists()},
+                   "outputs": {"db": str(out_dir/"regression_db.json")}}
     except Exception as e:
         logger.exception("Runtime error")
         write_result(status="error", module="regression-manager",

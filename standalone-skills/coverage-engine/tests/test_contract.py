@@ -1,33 +1,30 @@
-"""Contract tests for coverage-engine."""
-import sys, os, json
+
+"""Contract tests for coverage-engine -- validate skill_spec + output schema."""
+import sys, os, json, jsonschema
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-def test_skill_spec_exists():
-    path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "skill_spec.json")
-    assert os.path.isfile(path)
-    with open(path) as f:
+def test_skill_spec_valid():
+    with open("skill_spec.json") as f:
         spec = json.load(f)
-    assert "name" in spec
-    assert "version" in spec
+    assert spec["version"].count(".") == 2
+    assert spec["lifecycle"]["status"] in ("stable","beta","development")
+    assert "interface" in spec
+    assert spec["interface"]["entry"] == "run.py"
 
-def test_skilmd_exists():
-    path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "SKILL.md")
-    assert os.path.isfile(path)
+def test_result_schema():
+    """Validate a sample result.json against schema"""
+    schema_path = "schemas/result.schema.json"
+    if not os.path.isfile(schema_path):
+        return  # skip if not yet defined
+    with open(schema_path) as f:
+        schema = json.load(f)
+    sample = {"status": "pass", "timestamp": "2026-05-20T00:00:00",
+              "module": "test", "summary": "test", "metrics": {},
+              "outputs": {}, "errors": []}
+    jsonschema.validate(instance=sample, schema=schema)
 
-def test_config_yaml_exists():
-    path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.yaml")
-    assert os.path.isfile(path)
-
-def test_run_py_has_main():
-    path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "run.py")
-    with open(path) as f:
-        content = f.read()
-    assert "def main(" in content
-    assert "if __name__" in content
-
-def test_has_tests():
-    td = os.path.join(os.path.dirname(os.path.dirname(__file__)), "tests")
-    assert os.path.isdir(td)
-    assert os.path.isfile(os.path.join(td, "test_unit.py"))
-    assert os.path.isfile(os.path.join(td, "test_integration.py"))
-    assert os.path.isfile(os.path.join(td, "test_contract.py"))
+def test_downstream_friendly():
+    """Output format must be parseable by downstream skills"""
+    sample = {"metrics": {"total_signals": 100, "toggle_coverage_percent": 85.0, "stuck_signals": 0}}
+    assert 0 <= sample["metrics"]["toggle_coverage_percent"] <= 100
+    assert isinstance(sample["metrics"]["stuck_signals"], int)

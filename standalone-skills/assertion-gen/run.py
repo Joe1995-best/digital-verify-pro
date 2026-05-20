@@ -46,7 +46,13 @@ def main(argv=None) -> int:
     try:
                 from run_assertion_gen import main as ag_main
         ag_main()
-        result = {"status": "pass", "summary": ""Assertions generated""}
+        sva_files = list(out_dir.rglob("*assert*.sv")) if out_dir.exists() else []
+        sva_files = list(out_dir.rglob("*assert*.sv")) if out_dir.exists() else []
+        sva_files = list(out_dir.rglob("*assert*.sv")) if out_dir.exists() else []
+        result = {"status": "pass", "summary": f"Assertions: {len(sva_files)} SVA files",
+                   "metrics": {"assertions": len(sva_files)}, "outputs": {"dir": str(out_dir)}}
+                   "metrics": {"assertions": len(sva_files)}, "outputs": {"dir": str(out_dir)}}
+                   "metrics": {"assertions": len(sva_files)}, "outputs": {"dir": str(out_dir)}}
     except Exception as e:
         logger.exception("Runtime error")
         write_result(status="error", module="assertion-gen",

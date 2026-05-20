@@ -46,7 +46,9 @@ def main(argv=None) -> int:
     try:
                 from run import main as review_main
         review_main()
-        result = {"status": "pass", "summary": ""Review complete""}
+        rp = getattr(args, 'output', out_dir / "review_report.md")
+        result = {"status": "pass", "summary": "Review complete",
+                   "metrics": {}, "outputs": {"report": str(rp)}}
     except Exception as e:
         logger.exception("Runtime error")
         write_result(status="error", module="review",

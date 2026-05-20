@@ -46,7 +46,9 @@ def main(argv=None) -> int:
     try:
                 from run_test_generator import main as tg_main
         tg_main()
-        result = {"status": "pass", "summary": ""Test sequences generated""}
+        seq_files = list(out_dir.rglob("*_seq.sv")) if out_dir.exists() else []
+        result = {"status": "pass", "summary": f"Tests: {len(seq_files)} sequences",
+                   "metrics": {"sequences": len(seq_files)}, "outputs": {"dir": str(out_dir)}}
     except Exception as e:
         logger.exception("Runtime error")
         write_result(status="error", module="test-generator",
