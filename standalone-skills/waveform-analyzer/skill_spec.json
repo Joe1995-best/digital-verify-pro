@@ -1,58 +1,95 @@
 {
+  "$schema": "https://digital-verify-pro.dev/schemas/skill_spec.v1.json",
   "name": "waveform-analyzer",
   "version": "1.0.0",
+  "lifecycle": {
+    "status": "development",
+    "last_reviewed": "2026-05-20"
+  },
   "quality_score": 77.4,
   "description": "Post-simulation analysis: extract coverage metrics, identify failures from waveform dumps and log files.",
-  "inputs": {
-    "--log": {
-      "type": "file",
-      "required": false,
-      "description": "Simulation log file"
-    },
-    "--vcd": {
-      "type": "file",
-      "required": false,
-      "description": "VCD waveform file"
-    },
-    "--report": {
-      "type": "file",
-      "required": false,
-      "description": "Output report path"
-    }
-  },
-  "outputs": {
-    "result_json": {
-      "path": "result.json"
-    },
-    "report_files": [
+  "interface": {
+    "entry": "run.py",
+    "signature": [
       {
-        "path": "failure_report.json",
-        "format": "json",
-        "description": "Identified failures"
+        "name": "--spec",
+        "type": "path",
+        "required": false,
+        "help": "YAML spec for context"
       },
       {
-        "path": "coverage_report.json",
-        "format": "json",
-        "description": "Coverage metrics"
+        "name": "--out",
+        "type": "path",
+        "required": false,
+        "default": "output/",
+        "help": "Output directory"
+      },
+      {
+        "name": "--log-level",
+        "type": "enum",
+        "choices": [
+          "debug",
+          "info",
+          "warn",
+          "error"
+        ],
+        "default": "info",
+        "help": "Log level"
       }
     ]
   },
-  "depends_on": [
-    "sim-runner"
-  ],
-  "config": {},
+  "inputs": {
+    "files": {}
+  },
+  "outputs": {
+    "result_json": {
+      "path": "{out}/result.json",
+      "schema": {
+        "type": "object",
+        "required": [
+          "status",
+          "timestamp",
+          "metrics",
+          "outputs"
+        ]
+      }
+    }
+  },
+  "dependencies": {
+    "upstream": [
+      "sim-runner"
+    ],
+    "downstream": [
+      "doc-gen",
+      "coverage-plan"
+    ],
+    "tools": [],
+    "python_packages": []
+  },
+  "resource_limits": {
+    "timeout_seconds": 300,
+    "memory_mb": 1024
+  },
   "error_codes": {
+    "0": {
+      "name": "SUCCESS",
+      "fix": null
+    },
+    "1": {
+      "name": "INPUT_ERROR",
+      "fix": "Check CLI arguments"
+    },
     "3": {
-      "description": "Analysis failed",
-      "recovery": "Check log/VCD file format"
+      "name": "RUNTIME_ERROR",
+      "fix": "Check logs for details"
+    },
+    "99": {
+      "name": "INTERNAL_ERROR",
+      "fix": "Report bug"
     }
   },
   "tags": [
     "analysis",
     "post-simulation"
-  ],
-  "lifecycle": {
-    "status": "development",
-    "last_reviewed": "2026-05-20"
-  }
+  ]
 }

@@ -1,76 +1,97 @@
 {
+  "$schema": "https://digital-verify-pro.dev/schemas/skill_spec.v1.json",
   "name": "regression-manager",
   "version": "1.0.0",
+  "lifecycle": {
+    "status": "beta",
+    "last_reviewed": "2026-05-20"
+  },
   "quality_score": 76.4,
   "description": "Multi-run regression tracking with history, performance trends, result comparison, and persistent database.",
-  "inputs": {
-    "--module": {
-      "type": "string",
-      "required": false,
-      "description": "Module name"
-    },
-    "--total": {
-      "type": "int",
-      "required": false,
-      "description": "Total test count"
-    },
-    "--passed": {
-      "type": "int",
-      "required": false,
-      "description": "Passed test count"
-    },
-    "--list": {
-      "type": "boolean",
-      "required": false,
-      "description": "List historical runs"
-    },
-    "--compare": {
-      "type": "boolean",
-      "required": false,
-      "description": "Compare two runs"
-    }
-  },
-  "outputs": {
-    "result_json": {
-      "path": "result.json"
-    },
-    "report_files": [
+  "interface": {
+    "entry": "run.py",
+    "signature": [
       {
-        "path": "regression_db.json",
-        "format": "json",
-        "description": "Historical database"
+        "name": "--spec",
+        "type": "path",
+        "required": false,
+        "help": "YAML spec for context"
       },
       {
-        "path": "trends.json",
-        "format": "json",
-        "description": "Trend chart data"
+        "name": "--out",
+        "type": "path",
+        "required": false,
+        "default": "output/",
+        "help": "Output directory"
+      },
+      {
+        "name": "--log-level",
+        "type": "enum",
+        "choices": [
+          "debug",
+          "info",
+          "warn",
+          "error"
+        ],
+        "default": "info",
+        "help": "Log level"
       }
     ]
   },
-  "depends_on": [
-    "sim-runner",
-    "coverage-engine"
-  ],
-  "config": {
-    "db_path": {
-      "type": "path",
-      "default": "regression_db.json",
-      "description": "Path to history database"
+  "inputs": {
+    "files": {}
+  },
+  "outputs": {
+    "result_json": {
+      "path": "{out}/result.json",
+      "schema": {
+        "type": "object",
+        "required": [
+          "status",
+          "timestamp",
+          "metrics",
+          "outputs"
+        ]
+      }
     }
   },
+  "dependencies": {
+    "upstream": [
+      "sim-runner",
+      "coverage-engine"
+    ],
+    "downstream": [
+      "dashboard-gen",
+      "doc-gen"
+    ],
+    "tools": [],
+    "python_packages": []
+  },
+  "resource_limits": {
+    "timeout_seconds": 300,
+    "memory_mb": 1024
+  },
   "error_codes": {
+    "0": {
+      "name": "SUCCESS",
+      "fix": null
+    },
+    "1": {
+      "name": "INPUT_ERROR",
+      "fix": "Check CLI arguments"
+    },
     "3": {
-      "description": "Database read/write error",
-      "recovery": "Check file permissions"
+      "name": "RUNTIME_ERROR",
+      "fix": "Check logs for details"
+    },
+    "99": {
+      "name": "INTERNAL_ERROR",
+      "fix": "Report bug"
     }
   },
   "tags": [
     "regression",
     "tracking",
     "history"
-  ],
-  "lifecycle": {
-    "status": "beta",
-    "last_reviewed": "2026-05-20"
-  }
+  ]
 }

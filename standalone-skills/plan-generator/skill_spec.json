@@ -1,62 +1,106 @@
 {
+  "$schema": "https://digital-verify-pro.dev/schemas/skill_spec.v1.json",
   "name": "plan-generator",
   "version": "2.0.0",
+  "lifecycle": {
+    "status": "beta",
+    "last_reviewed": "2026-05-20"
+  },
   "quality_score": 76.9,
   "description": "Verification plan generator from RTL source analysis: FSM extraction, data path analysis, control complexity scoring, differentiated test generation.",
-  "inputs": {
-    "--vcd": {
-      "type": "file",
-      "required": false,
-      "description": "VCD for toggle analysis"
-    },
-    "--clk": {
-      "type": "string",
-      "required": false,
-      "description": "Clock signal name"
-    },
-    "--fsm": {
-      "type": "string",
-      "required": false,
-      "description": "FSM state register signal"
-    },
-    "--output": {
-      "type": "dir",
-      "required": false,
-      "description": "Output directory"
-    }
-  },
-  "outputs": {
-    "result_json": {
-      "path": "result.json"
-    },
-    "report_files": [
+  "interface": {
+    "entry": "run.py",
+    "signature": [
       {
-        "path": "verification-plan.md",
-        "format": "md",
-        "description": "Full verification plan"
+        "name": "--spec",
+        "type": "path",
+        "required": false,
+        "help": "YAML spec for context"
       },
       {
-        "path": "test-scenarios.yml",
-        "format": "yaml",
-        "description": "Differentiated test scenarios"
+        "name": "--out",
+        "type": "path",
+        "required": false,
+        "default": "output/",
+        "help": "Output directory"
+      },
+      {
+        "name": "--log-level",
+        "type": "enum",
+        "choices": [
+          "debug",
+          "info",
+          "warn",
+          "error"
+        ],
+        "default": "info",
+        "help": "Log level"
+      },
+      {
+        "name": "--vcd",
+        "type": "path",
+        "required": false,
+        "help": "VCD for toggle analysis"
+      },
+      {
+        "name": "--clk",
+        "type": "string",
+        "required": false,
+        "help": "Clock signal name"
       }
     ]
   },
-  "depends_on": [],
-  "config": {},
+  "inputs": {
+    "files": {}
+  },
+  "outputs": {
+    "result_json": {
+      "path": "{out}/result.json",
+      "schema": {
+        "type": "object",
+        "required": [
+          "status",
+          "timestamp",
+          "metrics",
+          "outputs"
+        ]
+      }
+    }
+  },
+  "dependencies": {
+    "upstream": [],
+    "downstream": [
+      "test-generator",
+      "coverage-engine"
+    ],
+    "tools": [],
+    "python_packages": []
+  },
+  "resource_limits": {
+    "timeout_seconds": 300,
+    "memory_mb": 1024
+  },
   "error_codes": {
+    "0": {
+      "name": "SUCCESS",
+      "fix": null
+    },
+    "1": {
+      "name": "INPUT_ERROR",
+      "fix": "Check CLI arguments"
+    },
     "3": {
-      "description": "RTL analysis failed",
-      "recovery": "Check VCD file format or RTL source accessibility"
+      "name": "RUNTIME_ERROR",
+      "fix": "Check logs for details"
+    },
+    "99": {
+      "name": "INTERNAL_ERROR",
+      "fix": "Report bug"
     }
   },
   "tags": [
     "planning",
     "rtl-analysis",
     "fsm"
-  ],
-  "lifecycle": {
-    "status": "beta",
-    "last_reviewed": "2026-05-20"
-  }
+  ]
 }

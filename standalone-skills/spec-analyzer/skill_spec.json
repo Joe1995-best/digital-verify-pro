@@ -1,71 +1,100 @@
 {
+  "$schema": "https://digital-verify-pro.dev/schemas/skill_spec.v1.json",
   "name": "spec-analyzer",
   "version": "2.0.0",
+  "lifecycle": {
+    "status": "stable",
+    "last_reviewed": "2026-05-20"
+  },
   "quality_score": 79.9,
   "description": "Parse spec YAML into a full verification plan. Identifies protocols, interfaces, registers, FSM configurations, and generates test scenarios with functional coverage goals.",
-  "inputs": {
-    "--spec": {
-      "type": "file",
-      "required": true,
-      "description": "Path to spec YAML file",
-      "cli_flag": "--spec"
-    },
-    "--out": {
-      "type": "dir",
-      "required": false,
-      "description": "Output directory",
-      "default": "output",
-      "cli_flag": "--out"
-    }
-  },
-  "outputs": {
-    "result_json": {
-      "path": "result.json",
-      "schema": {
-        "status": "string",
-        "files": [
-          "string"
-        ]
-      }
-    },
-    "report_files": [
+  "interface": {
+    "entry": "run.py",
+    "signature": [
       {
-        "path": "verification-plan.md",
-        "format": "md",
-        "description": "Full verification plan"
+        "name": "--spec",
+        "type": "path",
+        "required": false,
+        "help": "YAML spec for context"
       },
       {
-        "path": "interface-list.yml",
-        "format": "yaml",
-        "description": "Interface definitions"
+        "name": "--out",
+        "type": "path",
+        "required": false,
+        "default": "output/",
+        "help": "Output directory"
       },
       {
-        "path": "register-map.yml",
-        "format": "yaml",
-        "description": "Register map"
-      },
-      {
-        "path": "test-scenarios.yml",
-        "format": "yaml",
-        "description": "Test scenarios"
+        "name": "--log-level",
+        "type": "enum",
+        "choices": [
+          "debug",
+          "info",
+          "warn",
+          "error"
+        ],
+        "default": "info",
+        "help": "Log level"
       }
     ]
   },
-  "depends_on": [],
-  "config": {},
+  "inputs": {
+    "files": {}
+  },
+  "outputs": {
+    "result_json": {
+      "path": "{out}/result.json",
+      "schema": {
+        "type": "object",
+        "required": [
+          "status",
+          "timestamp",
+          "metrics",
+          "outputs"
+        ]
+      }
+    }
+  },
+  "dependencies": {
+    "upstream": [],
+    "downstream": [
+      "env-builder",
+      "test-generator",
+      "coverage-plan",
+      "regmodel-gen",
+      "rtl-gen"
+    ],
+    "tools": [],
+    "python_packages": [
+      "pyyaml>=6.0",
+      "jinja2"
+    ]
+  },
+  "resource_limits": {
+    "timeout_seconds": 300,
+    "memory_mb": 1024
+  },
   "error_codes": {
-    "2": {
-      "description": "Spec YAML parse failure",
-      "recovery": "Check YAML syntax, ensure required fields (name, interfaces)"
+    "0": {
+      "name": "SUCCESS",
+      "fix": null
+    },
+    "1": {
+      "name": "INPUT_ERROR",
+      "fix": "Check CLI arguments"
+    },
+    "3": {
+      "name": "RUNTIME_ERROR",
+      "fix": "Check logs for details"
+    },
+    "99": {
+      "name": "INTERNAL_ERROR",
+      "fix": "Report bug"
     }
   },
   "tags": [
     "verification",
     "planning",
     "spec"
-  ],
-  "lifecycle": {
-    "status": "stable",
-    "last_reviewed": "2026-05-20"
-  }
+  ]
 }

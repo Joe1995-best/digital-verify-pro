@@ -1,71 +1,127 @@
 {
+  "$schema": "https://digital-verify-pro.dev/schemas/skill_spec.v1.json",
   "name": "dashboard-gen",
   "version": "1.0.0",
+  "lifecycle": {
+    "status": "beta",
+    "last_reviewed": "2026-05-20"
+  },
   "quality_score": 75.9,
   "description": "Interactive HTML dashboard generator from coverage gauges, test result tables, regression trends, and heatmaps.",
-  "inputs": {
-    "--module": {
-      "type": "string",
-      "required": true,
-      "description": "DUT module name"
-    },
-    "--output": {
-      "type": "file",
-      "required": true,
-      "description": "Output HTML file path"
-    },
-    "--total": {
-      "type": "int",
-      "required": false,
-      "description": "Total test count"
-    },
-    "--passed": {
-      "type": "int",
-      "required": false,
-      "description": "Passed test count"
-    },
-    "--toggle-cov": {
-      "type": "float",
-      "required": false,
-      "description": "Toggle coverage %"
-    },
-    "--func-cov": {
-      "type": "float",
-      "required": false,
-      "description": "Functional coverage %"
-    }
-  },
-  "outputs": {
-    "result_json": {
-      "path": "result.json"
-    },
-    "report_files": [
+  "interface": {
+    "entry": "run.py",
+    "signature": [
       {
-        "path": "{output}.html",
-        "format": "html",
-        "description": "Self-contained interactive dashboard"
+        "name": "--spec",
+        "type": "path",
+        "required": false,
+        "help": "YAML spec for context"
+      },
+      {
+        "name": "--out",
+        "type": "path",
+        "required": false,
+        "default": "output/",
+        "help": "Output directory"
+      },
+      {
+        "name": "--log-level",
+        "type": "enum",
+        "choices": [
+          "debug",
+          "info",
+          "warn",
+          "error"
+        ],
+        "default": "info",
+        "help": "Log level"
+      },
+      {
+        "name": "--module",
+        "type": "string",
+        "required": true,
+        "help": "DUT module name"
+      },
+      {
+        "name": "--output",
+        "type": "path",
+        "required": true,
+        "help": "Output HTML path"
+      },
+      {
+        "name": "--total",
+        "type": "int",
+        "required": false,
+        "help": "Total test count"
+      },
+      {
+        "name": "--passed",
+        "type": "int",
+        "required": false,
+        "help": "Passed test count"
+      },
+      {
+        "name": "--toggle-cov",
+        "type": "float",
+        "required": false,
+        "help": "Toggle coverage %"
       }
     ]
   },
-  "depends_on": [
-    "coverage-engine",
-    "sim-runner",
-    "regression-manager"
-  ],
-  "config": {},
+  "inputs": {
+    "files": {}
+  },
+  "outputs": {
+    "result_json": {
+      "path": "{out}/result.json",
+      "schema": {
+        "type": "object",
+        "required": [
+          "status",
+          "timestamp",
+          "metrics",
+          "outputs"
+        ]
+      }
+    }
+  },
+  "dependencies": {
+    "upstream": [
+      "coverage-engine",
+      "sim-runner",
+      "regression-manager"
+    ],
+    "downstream": [
+      "doc-gen"
+    ],
+    "tools": [],
+    "python_packages": []
+  },
+  "resource_limits": {
+    "timeout_seconds": 300,
+    "memory_mb": 1024
+  },
   "error_codes": {
+    "0": {
+      "name": "SUCCESS",
+      "fix": null
+    },
     "1": {
-      "description": "Module name required",
-      "recovery": "Provide --module argument"
+      "name": "INPUT_ERROR",
+      "fix": "Check CLI arguments"
+    },
+    "3": {
+      "name": "RUNTIME_ERROR",
+      "fix": "Check logs for details"
+    },
+    "99": {
+      "name": "INTERNAL_ERROR",
+      "fix": "Report bug"
     }
   },
   "tags": [
     "dashboard",
     "visualization",
     "reporting"
-  ],
-  "lifecycle": {
-    "status": "beta",
-    "last_reviewed": "2026-05-20"
-  }
+  ]
 }

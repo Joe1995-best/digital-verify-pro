@@ -1,73 +1,152 @@
 {
+  "$schema": "https://digital-verify-pro.dev/schemas/skill_spec.v1.json",
   "name": "coverage-engine",
   "version": "2.0.0",
+  "lifecycle": {
+    "status": "stable",
+    "last_reviewed": "2026-05-20"
+  },
   "quality_score": 79.4,
   "description": "VCD-based toggle coverage analysis engine. Pure Python VCD parser with full-signal per-bit toggle analysis, activity classification, and gap detection.",
+  "interface": {
+    "entry": "run.py",
+    "signature": [
+      {
+        "name": "--vcd",
+        "type": "path",
+        "required": true,
+        "help": "VCD waveform file"
+      },
+      {
+        "name": "--spec",
+        "type": "path",
+        "required": false,
+        "help": "YAML spec for context"
+      },
+      {
+        "name": "--report",
+        "type": "path",
+        "required": false,
+        "default": "coverage_report.json"
+      },
+      {
+        "name": "--out",
+        "type": "path",
+        "required": false,
+        "default": "output/"
+      },
+      {
+        "name": "--log-level",
+        "type": "enum",
+        "choices": [
+          "debug",
+          "info",
+          "warn",
+          "error"
+        ],
+        "default": "info"
+      }
+    ]
+  },
   "inputs": {
-    "--vcd": {
-      "type": "file",
-      "required": true,
-      "description": "VCD file from simulation"
-    },
-    "--report": {
-      "type": "file",
-      "required": false,
-      "description": "Output JSON report path"
-    },
-    "--top": {
-      "type": "string",
-      "required": false,
-      "description": "Top module for scope filtering"
-    },
-    "--markdown": {
-      "type": "boolean",
-      "required": false,
-      "description": "Also generate markdown report"
+    "files": {
+      "vcd": {
+        "format": "VCD",
+        "mime_type": "text/plain",
+        "max_size_mb": 1024,
+        "required_signals": [
+          "timescale",
+          "scope",
+          "var",
+          "enddefinitions"
+        ],
+        "schema_reference": "schemas/vcd.v1.schema.json"
+      }
     }
   },
   "outputs": {
     "result_json": {
-      "path": "result.json",
+      "path": "{out}/result.json",
       "schema": {
-        "status": "string",
-        "metrics.total_signals": "int",
-        "metrics.toggle_rate": "float"
+        "type": "object",
+        "required": [
+          "status",
+          "timestamp",
+          "metrics",
+          "outputs"
+        ],
+        "properties": {
+          "status": {
+            "enum": [
+              "pass",
+              "fail",
+              "error",
+              "skip"
+            ]
+          },
+          "metrics": {
+            "type": "object",
+            "required": [
+              "total_signals",
+              "toggle_coverage_percent",
+              "stuck_signals"
+            ]
+          }
+        }
       }
     },
-    "report_files": [
-      {
-        "path": "{report}.json",
-        "format": "json",
-        "description": "Full per-signal toggle stats"
-      },
-      {
-        "path": "{report}.md",
-        "format": "md",
-        "description": "Coverage summary"
-      }
+    "coverage_report": {
+      "path": "{out}/coverage_report.json",
+      "schema_reference": "schemas/coverage_report.v2.schema.json",
+      "downstream_consumers": [
+        "dashboard-gen",
+        "coverage_converge"
+      ]
+    }
+  },
+  "dependencies": {
+    "upstream": [
+      "sim-runner",
+      "tb-compiler"
+    ],
+    "downstream": [
+      "dashboard-gen",
+      "coverage_converge"
+    ],
+    "tools": [],
+    "python_packages": [
+      "pyyaml>=6.0"
     ]
   },
-  "depends_on": [
-    "sim-runner"
-  ],
-  "config": {},
+  "resource_limits": {
+    "timeout_seconds": 300,
+    "memory_mb": 2048
+  },
   "error_codes": {
+    "0": {
+      "name": "SUCCESS",
+      "fix": null
+    },
     "1": {
-      "description": "VCD file required",
-      "recovery": "Provide --vcd argument"
+      "name": "INPUT_ERROR",
+      "fix": "Check --vcd file exists"
     },
     "3": {
-      "description": "VCD parse error",
-      "recovery": "Check VCD file format"
+      "name": "RUNTIME_ERROR",
+      "fix": "Check VCD file format"
+    },
+    "5": {
+      "name": "DEPENDENCY_ERROR",
+      "fix": "Install vcdvcd: pip install vcdvcd"
+    },
+    "6": {
+      "name": "TIMEOUT",
+      "fix": "Increase timeout_seconds in config.yaml"
     }
   },
   "tags": [
     "coverage",
     "analysis",
     "vcd"
-  ],
-  "lifecycle": {
-    "status": "stable",
-    "last_reviewed": "2026-05-20"
-  }
+  ]
 }

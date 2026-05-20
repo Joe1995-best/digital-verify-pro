@@ -1,93 +1,120 @@
 {
+  "$schema": "https://digital-verify-pro.dev/schemas/skill_spec.v1.json",
   "name": "tb-compiler",
   "version": "1.0.0",
+  "lifecycle": {
+    "status": "development",
+    "last_reviewed": "2026-05-20"
+  },
   "quality_score": 76.4,
   "description": "Compile verification environment with EDA tool. COMPILE ONLY — generates compile scripts and optionally runs compilation. Does NOT execute simulation.",
+  "interface": {
+    "entry": "run.py",
+    "signature": [
+      {
+        "name": "--spec",
+        "type": "path",
+        "required": false,
+        "help": "YAML spec for context"
+      },
+      {
+        "name": "--out",
+        "type": "path",
+        "required": false,
+        "default": "output/",
+        "help": "Output directory"
+      },
+      {
+        "name": "--log-level",
+        "type": "enum",
+        "choices": [
+          "debug",
+          "info",
+          "warn",
+          "error"
+        ],
+        "default": "info",
+        "help": "Log level"
+      },
+      {
+        "name": "--tool",
+        "type": "enum",
+        "choices": [
+          "auto",
+          "iverilog",
+          "verilator",
+          "vcs",
+          "questa"
+        ],
+        "default": "auto",
+        "help": "Simulator"
+      },
+      {
+        "name": "--check-only",
+        "type": "boolean",
+        "required": false,
+        "help": "RTL syntax check only"
+      }
+    ]
+  },
   "inputs": {
-    "--spec": {
-      "type": "file",
-      "required": true,
-      "description": "Path to spec YAML"
-    },
-    "--out": {
-      "type": "dir",
-      "required": false,
-      "description": "Output directory"
-    },
-    "--tool": {
-      "type": "string",
-      "required": false,
-      "description": "Simulator (questa/vcs/xcelium/iverilog)",
-      "default": "auto-detect",
-      "choices": [
-        "questa",
-        "vcs",
-        "xcelium",
-        "iverilog",
-        "verilator"
-      ]
-    }
+    "files": {}
   },
   "outputs": {
     "result_json": {
-      "path": "result.json",
+      "path": "{out}/result.json",
       "schema": {
-        "status": "string",
-        "outputs.simv": "string",
-        "compile_log": "string"
+        "type": "object",
+        "required": [
+          "status",
+          "timestamp",
+          "metrics",
+          "outputs"
+        ]
       }
-    },
-    "report_files": [
-      {
-        "path": "compile.log",
-        "format": "log",
-        "description": "Compilation log"
-      },
-      {
-        "path": "simv",
-        "format": "binary",
-        "description": "Simulation executable (if compile succeeded)"
-      }
-    ],
-    "exit_codes": {
-      "0": "Compilation successful",
-      "5": "Simulator not found — install Questa/VCS/Xcelium or iverilog"
     }
   },
-  "depends_on": [
-    "env-builder",
-    "test-generator",
-    "scoreboard-gen",
-    "assertion-gen",
-    "coverage-plan",
-    "regmodel-gen"
-  ],
-  "config": {
-    "simulator_path": {
-      "type": "path",
-      "default": "",
-      "description": "Override path to simulator executable"
-    }
+  "dependencies": {
+    "upstream": [
+      "env-builder",
+      "test-generator",
+      "assertion-gen",
+      "scoreboard-gen",
+      "coverage-plan",
+      "regmodel-gen"
+    ],
+    "downstream": [
+      "sim-runner"
+    ],
+    "tools": [],
+    "python_packages": [
+      "jinja2"
+    ]
+  },
+  "resource_limits": {
+    "timeout_seconds": 300,
+    "memory_mb": 1024
   },
   "error_codes": {
     "0": {
-      "description": "Success"
+      "name": "SUCCESS",
+      "fix": null
+    },
+    "1": {
+      "name": "INPUT_ERROR",
+      "fix": "Check CLI arguments"
     },
     "3": {
-      "description": "Compilation error",
-      "recovery": "Check compile.log for errors"
+      "name": "RUNTIME_ERROR",
+      "fix": "Check logs for details"
     },
-    "5": {
-      "description": "Simulator not found",
-      "recovery": "Install or set simulator_path in config.yaml"
+    "99": {
+      "name": "INTERNAL_ERROR",
+      "fix": "Report bug"
     }
   },
   "tags": [
     "compilation",
     "uvm"
-  ],
-  "lifecycle": {
-    "status": "development",
-    "last_reviewed": "2026-05-20"
-  }
+  ]
 }

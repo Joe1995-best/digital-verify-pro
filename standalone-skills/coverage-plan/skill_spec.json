@@ -1,49 +1,100 @@
 {
+  "$schema": "https://digital-verify-pro.dev/schemas/skill_spec.v1.json",
   "name": "coverage-plan",
   "version": "1.0.0",
+  "lifecycle": {
+    "status": "beta",
+    "last_reviewed": "2026-05-20"
+  },
   "quality_score": 78.9,
   "description": "Generate functional coverage groups from verification plan: interface coverage, register coverage, and cross coverage.",
-  "inputs": {
-    "--spec": {
-      "type": "file",
-      "required": true,
-      "description": "Path to spec YAML"
-    },
-    "--out": {
-      "type": "dir",
-      "required": false,
-      "description": "Output directory"
-    }
-  },
-  "outputs": {
-    "result_json": {
-      "path": "result.json"
-    },
-    "report_files": [
+  "interface": {
+    "entry": "run.py",
+    "signature": [
       {
-        "path": "rtl/verification/env/coverage/{module}_cov.sv",
-        "format": "sv",
-        "description": "Coverage groups"
+        "name": "--spec",
+        "type": "path",
+        "required": false,
+        "help": "YAML spec for context"
+      },
+      {
+        "name": "--out",
+        "type": "path",
+        "required": false,
+        "default": "output/",
+        "help": "Output directory"
+      },
+      {
+        "name": "--log-level",
+        "type": "enum",
+        "choices": [
+          "debug",
+          "info",
+          "warn",
+          "error"
+        ],
+        "default": "info",
+        "help": "Log level"
       }
     ]
   },
-  "depends_on": [
-    "spec-analyzer"
-  ],
-  "config": {},
+  "inputs": {
+    "files": {}
+  },
+  "outputs": {
+    "result_json": {
+      "path": "{out}/result.json",
+      "schema": {
+        "type": "object",
+        "required": [
+          "status",
+          "timestamp",
+          "metrics",
+          "outputs"
+        ]
+      }
+    }
+  },
+  "dependencies": {
+    "upstream": [
+      "spec-analyzer",
+      "formal-check"
+    ],
+    "downstream": [
+      "sim-runner",
+      "waveform-analyzer"
+    ],
+    "tools": [],
+    "python_packages": [
+      "pyyaml>=6.0",
+      "jinja2"
+    ]
+  },
+  "resource_limits": {
+    "timeout_seconds": 300,
+    "memory_mb": 1024
+  },
   "error_codes": {
+    "0": {
+      "name": "SUCCESS",
+      "fix": null
+    },
+    "1": {
+      "name": "INPUT_ERROR",
+      "fix": "Check CLI arguments"
+    },
     "3": {
-      "description": "Coverage generation failed",
-      "recovery": "Check register and interface definitions"
+      "name": "RUNTIME_ERROR",
+      "fix": "Check logs for details"
+    },
+    "99": {
+      "name": "INTERNAL_ERROR",
+      "fix": "Report bug"
     }
   },
   "tags": [
     "coverage",
     "functional",
     "planning"
-  ],
-  "lifecycle": {
-    "status": "beta",
-    "last_reviewed": "2026-05-20"
-  }
+  ]
 }

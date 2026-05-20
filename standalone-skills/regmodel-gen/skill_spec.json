@@ -1,54 +1,100 @@
 {
+  "$schema": "https://digital-verify-pro.dev/schemas/skill_spec.v1.json",
   "name": "regmodel-gen",
   "version": "1.0.0",
+  "lifecycle": {
+    "status": "beta",
+    "last_reviewed": "2026-05-20"
+  },
   "quality_score": 78.4,
   "description": "Generate UVM Register Abstraction Layer (RAL) model from spec register map: IEEE 1800.2 compliant reg_block, registers, and fields.",
-  "inputs": {
-    "--spec": {
-      "type": "file",
-      "required": true,
-      "description": "Path to spec YAML"
-    },
-    "--out": {
-      "type": "dir",
-      "required": false,
-      "description": "Output directory"
-    }
-  },
-  "outputs": {
-    "result_json": {
-      "path": "result.json"
-    },
-    "report_files": [
+  "interface": {
+    "entry": "run.py",
+    "signature": [
       {
-        "path": "rtl/verification/env/ral/{module}_ral_block.sv",
-        "format": "sv",
-        "description": "RAL block"
+        "name": "--spec",
+        "type": "path",
+        "required": false,
+        "help": "YAML spec for context"
       },
       {
-        "path": "rtl/verification/env/ral/{module}_ral_pkg.sv",
-        "format": "sv",
-        "description": "RAL package"
+        "name": "--out",
+        "type": "path",
+        "required": false,
+        "default": "output/",
+        "help": "Output directory"
+      },
+      {
+        "name": "--log-level",
+        "type": "enum",
+        "choices": [
+          "debug",
+          "info",
+          "warn",
+          "error"
+        ],
+        "default": "info",
+        "help": "Log level"
       }
     ]
   },
-  "depends_on": [
-    "spec-analyzer"
-  ],
-  "config": {},
+  "inputs": {
+    "files": {}
+  },
+  "outputs": {
+    "result_json": {
+      "path": "{out}/result.json",
+      "schema": {
+        "type": "object",
+        "required": [
+          "status",
+          "timestamp",
+          "metrics",
+          "outputs"
+        ]
+      }
+    }
+  },
+  "dependencies": {
+    "upstream": [
+      "spec-analyzer"
+    ],
+    "downstream": [
+      "tb-compiler",
+      "test-generator",
+      "scoreboard-gen"
+    ],
+    "tools": [],
+    "python_packages": [
+      "pyyaml>=6.0",
+      "jinja2"
+    ]
+  },
+  "resource_limits": {
+    "timeout_seconds": 300,
+    "memory_mb": 1024
+  },
   "error_codes": {
+    "0": {
+      "name": "SUCCESS",
+      "fix": null
+    },
+    "1": {
+      "name": "INPUT_ERROR",
+      "fix": "Check CLI arguments"
+    },
     "3": {
-      "description": "RAL generation failed",
-      "recovery": "Check register definitions in spec"
+      "name": "RUNTIME_ERROR",
+      "fix": "Check logs for details"
+    },
+    "99": {
+      "name": "INTERNAL_ERROR",
+      "fix": "Report bug"
     }
   },
   "tags": [
     "uvm",
     "ral",
     "register"
-  ],
-  "lifecycle": {
-    "status": "beta",
-    "last_reviewed": "2026-05-20"
-  }
+  ]
 }

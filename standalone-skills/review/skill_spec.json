@@ -1,57 +1,93 @@
 {
+  "$schema": "https://digital-verify-pro.dev/schemas/skill_spec.v1.json",
   "name": "review",
   "version": "2.0.0",
+  "lifecycle": {
+    "status": "development",
+    "last_reviewed": "2026-05-20"
+  },
   "quality_score": 77.4,
   "description": "Cross-model RTL review: scans SystemVerilog for connectivity bugs, unconnected ports, multiple-driver conflicts, coverage-sensitive patterns.",
-  "inputs": {
-    "--dir": {
-      "type": "dir",
-      "required": true,
-      "description": "Directory with RTL files to review"
-    },
-    "--output": {
-      "type": "file",
-      "required": false,
-      "description": "Output report path"
-    },
-    "--reviewers": {
-      "type": "file",
-      "required": false,
-      "description": "YAML LLM reviewer config"
-    }
-  },
-  "outputs": {
-    "result_json": {
-      "path": "result.json"
-    },
-    "report_files": [
+  "interface": {
+    "entry": "run.py",
+    "signature": [
       {
-        "path": "review_report.md",
-        "format": "md",
-        "description": "Structured review findings"
+        "name": "--spec",
+        "type": "path",
+        "required": false,
+        "help": "YAML spec for context"
       },
       {
-        "path": "review_summary.json",
-        "format": "json",
-        "description": "Machine-readable findings"
+        "name": "--out",
+        "type": "path",
+        "required": false,
+        "default": "output/",
+        "help": "Output directory"
+      },
+      {
+        "name": "--log-level",
+        "type": "enum",
+        "choices": [
+          "debug",
+          "info",
+          "warn",
+          "error"
+        ],
+        "default": "info",
+        "help": "Log level"
       }
     ]
   },
-  "depends_on": [],
-  "config": {},
+  "inputs": {
+    "files": {}
+  },
+  "outputs": {
+    "result_json": {
+      "path": "{out}/result.json",
+      "schema": {
+        "type": "object",
+        "required": [
+          "status",
+          "timestamp",
+          "metrics",
+          "outputs"
+        ]
+      }
+    }
+  },
+  "dependencies": {
+    "upstream": [
+      "coverage-engine"
+    ],
+    "downstream": [],
+    "tools": [],
+    "python_packages": []
+  },
+  "resource_limits": {
+    "timeout_seconds": 300,
+    "memory_mb": 1024
+  },
   "error_codes": {
+    "0": {
+      "name": "SUCCESS",
+      "fix": null
+    },
     "1": {
-      "description": "--dir required",
-      "recovery": "Provide directory with RTL files"
+      "name": "INPUT_ERROR",
+      "fix": "Check CLI arguments"
+    },
+    "3": {
+      "name": "RUNTIME_ERROR",
+      "fix": "Check logs for details"
+    },
+    "99": {
+      "name": "INTERNAL_ERROR",
+      "fix": "Report bug"
     }
   },
   "tags": [
     "review",
     "rtl",
     "code-quality"
-  ],
-  "lifecycle": {
-    "status": "development",
-    "last_reviewed": "2026-05-20"
-  }
+  ]
 }
