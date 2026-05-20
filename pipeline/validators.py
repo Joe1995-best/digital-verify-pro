@@ -352,14 +352,15 @@ def validate_scoreboard_gen(out_dir) -> Dict:
         fpath = os.path.join(sb_dir, fname)
         content = read_file(fpath)
         
-        # Check scoreboard has report_phase
-        if "scoreboard" in fname.lower() or "sb" in fname.lower():
-            if "report_phase" not in content:
-                issues.append({"severity": "WARNING", "file": fname,
-                              "message": "Scoreboard missing report_phase — no PASS/FAIL summary will be printed"})
-            if "uvm_analysis_imp" not in content:
-                issues.append({"severity": "ERROR", "file": fname,
-                              "message": "Scoreboard missing uvm_analysis_imp declarations"})
+        # Check scoreboard has report_phase — only for main sb.sv
+        if "_coverage" not in fname.lower() and "_predictor" not in fname.lower():
+            if "scoreboard" in fname.lower() or "sb" in fname.lower():
+                if "report_phase" not in content:
+                    issues.append({"severity": "WARNING", "file": fname,
+                                  "message": "Scoreboard missing report_phase — no PASS/FAIL summary will be printed"})
+                if "uvm_analysis_imp" not in content:
+                    issues.append({"severity": "ERROR", "file": fname,
+                                  "message": "Scoreboard missing uvm_analysis_imp declarations"})
     
     passed = len([i for i in issues if i["severity"] == "ERROR"]) == 0
     contract = load_contract("env-builder", out_dir) or {}

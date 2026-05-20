@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+"""DEPRECATED - use pro_verify.py --pipeline <spec>.yml"""
+import warnings
+warnings.warn("run_e2e.py is deprecated, use pro_verify.py --pipeline <spec>.yml")
+
 """Updated convergence pipeline: tests both modes, fixes feature matching."""
 import os, sys, json, subprocess, glob, shutil
 sys.path.insert(0, os.path.dirname(__file__))

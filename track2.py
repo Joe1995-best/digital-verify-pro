@@ -228,6 +228,15 @@ class PipelineRunner:
         if self.spec_path:
             cmd.extend(["--spec", self.spec_path])
         cmd.extend(["--out", self.outdir])
+        # Per-phase extra arguments
+        if phase == "tb-gen":
+            tp_path = os.path.join(self.outdir, "test_plan.yml")
+            if os.path.isfile(tp_path):
+                cmd.extend(["--plan", tp_path])
+                mod_name = os.path.basename(self.spec_path).replace("_spec.yml", "").replace(".yml", "") if self.spec_path else "module"
+                cmd.extend(["--module", mod_name])
+                reg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "verify", "regression_list.py") if os.path.dirname(__file__) else "../verify/regression_list.py"
+                cmd.extend(["--regression", reg_path])
 
         try:
             result = subprocess.run(
@@ -237,8 +246,8 @@ class PipelineRunner:
             )
             elapsed = time.time() - t0
             returncode = result.returncode
-            stdout = result.stdout
-            stderr = result.stderr
+            stdout = result.stdout or ""
+            stderr = result.stderr or ""
 
             # Print output
             if stdout.strip():

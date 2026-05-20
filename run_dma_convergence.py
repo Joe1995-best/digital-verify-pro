@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+"""DEPRECATED - use pro_verify.py --pipeline ot_dma_spec.yml"""
+import warnings
+warnings.warn("run_dma_convergence.py is deprecated, use pro_verify.py --pipeline ot_dma_spec.yml")
+
 """DMA VRF convergence pipeline — including checklist audit."""
 
 import os, sys, json, subprocess, glob, yaml

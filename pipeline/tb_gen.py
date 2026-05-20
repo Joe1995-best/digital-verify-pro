@@ -45,6 +45,7 @@ endclass
 def parse_args():
     ap = argparse.ArgumentParser(description="tb_gen — TestBench Generator v3")
     ap.add_argument("--plan", required=True, help="Path to test_plan.yml")
+    ap.add_argument("--spec", help="Spec file path")
     ap.add_argument("--out", default="output/tests", help="Output directory for generated sequences")
     ap.add_argument("--module", default="i2c", help="Module name prefix for generated files")
     ap.add_argument("--regression", help="Path to regression_list.py to update")
@@ -107,58 +108,50 @@ def render_template(template, context):
     return result
 
 
+
 def update_regression_list(path, generated_cases):
-    """将生成的 case 追加到 regression_list.py 的 auto_cases 段"""
-    auto_entries = []
+    """Update regression_list.py with generated cases."""
+    import os
+    entries = []
     for c in generated_cases:
-        auto_entries.append(f"    \"{c['name']}\",\n")
-
-    if not os.path.exists(path):
-        # 创建新的 regression_list.py
-        content = f'''"""回归清单 — 由 tb_gen 自动生成 + 手动追加"""
-import os
-
-# --- 自动生成部分（tb_gen 覆盖刷新）---
-auto_cases = [
-{''.join(auto_entries) }]
-
-# --- 手动追加部分（tb_gen 不覆盖）---
-manual_cases = []
-
-ALL_CASES = auto_cases + manual_cases
-
-
-def active_cases():
-    return [c for c in ALL_CASES if not c.startswith("#")]
-'''
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(content)
-        print(f"  [REGRESSION] Created {path} ({len(auto_entries)} auto cases)")
+        entries.append('    "' + c['name'] + '",\n')
+    
+    if not os.path.isfile(path):
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write('"""Regression list."""\n')
+            f.write('auto_cases = [\n')
+            for e in entries:
+                f.write(e)
+            f.write(']\n')
+            f.write('manual_cases = []\n')
+            f.write('ALL_CASES = auto_cases + manual_cases\n')
+        print('  [REGRESSION] Created ' + path)
         return
-
-    # 读取现有文件，替换 auto_cases 段
-    with open(path, "r", encoding="utf-8") as f:
-        content = f.read()
-
-    # 替换 auto_cases 列表
-    start_marker = "auto_cases = ["
-    end_marker = "]"
-    start = content.find(start_marker)
-    if start < 0:
-        print(f"  [WARN] auto_cases not found in {path}, appending")
-        content += f"\n# auto cases (tb_gen)\nauto_cases = [\n{''.join(auto_entries)}]\n"
-    else:
-        end = content.find(end_marker, start + len(start_marker))
-        if end >= 0:
-            new_section = start_marker + "\n" + "".join(auto_entries) + "]"
-            content = content[:start] + new_section + content[end + 1:]
-        else:
-            content += f"\n# auto cases\nauto_cases = [\n{''.join(auto_entries)}]\n"
-
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(content)
-    print(f"  [REGRESSION] Updated {path} ({len(auto_entries)} auto cases)")
-
+    
+    with open(path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+    
+    new_lines = []
+    in_auto = False
+    found = False
+    for line in lines:
+        if 'auto_cases = [' in line:
+            in_auto = True
+            found = True
+            new_lines.append(line)
+            for e in entries:
+                new_lines.append(e)
+            new_lines.append(']\n')
+        elif in_auto and line.strip() == ']':
+            in_auto = False
+            continue
+        elif not in_auto:
+            new_lines.append(line)
+    
+    if found:
+        with open(path, 'w', encoding='utf-8') as f:
+            f.writelines(new_lines)
+        print('  [REGRESSION] Updated ' + path)
 
 def main():
     args = parse_args()

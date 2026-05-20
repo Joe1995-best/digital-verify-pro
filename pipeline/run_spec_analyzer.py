@@ -78,7 +78,8 @@ for iface in spec["interfaces"]:
         "name": iface["name"],
         "type": iface["type"],
         "direction": iface["direction"],
-        "signals": sig_count,
+        "signals": iface.get("signals", []),
+        "signal_count": sig_count,
         "data_width": iface.get("data_width", 32),
     }
     interfaces.append(info)
@@ -756,24 +757,40 @@ def write_port_map(path, interfaces, spec_data):
 def write_reg_map(path, registers, module):
     """Write reg_map.yml for rtl-gen / regmodel-gen"""
     regs = []
-    for name, info in sorted(registers.items()):
+    if isinstance(registers, dict):
+        items = registers.items()
+    elif isinstance(registers, list):
+        items = [(r.get("name", "reg_" + str(i)), r) for i, r in enumerate(registers)]
+    else:
+        items = []
+    for name, info in items:
         entry = {
-            "name": name,
-            "offset": info.get("address", 0),
+            "name": info.get("name", name),
+            "offset": info.get("offset", info.get("address", 0)),
             "size": info.get("width", 32),
             "description": info.get("description", ""),
             "fields": [],
         }
-        for fname, finfo in info.get("fields", {}).items():
-            field = {
-                "name": fname,
-                "bits": finfo.get("bits", [0]),
-                "access": finfo.get("access", "rw"),
-                "reset": finfo.get("reset", 0),
-            }
-            entry["fields"].append(field)
+        fields_data = info.get("fields", {})
+        if isinstance(fields_data, list):
+            for fe in fields_data:
+                field = {
+                    "name": fe.get("name", ""),
+                    "bits": fe.get("bits", [0]),
+                    "access": fe.get("access", "rw"),
+                    "reset": fe.get("reset", 0),
+                }
+                entry["fields"].append(field)
+        elif isinstance(fields_data, dict):
+            for fname, finfo in fields_data.items():
+                field = {
+                    "name": fname,
+                    "bits": finfo.get("bits", [0]),
+                    "access": finfo.get("access", "rw"),
+                    "reset": finfo.get("reset", 0),
+                }
+                entry["fields"].append(field)
         regs.append(entry)
-
     rm = {"module": module, "registers": regs}
     with open(path, "w", encoding="utf-8") as f:
         yaml.dump(rm, f, default_flow_style=None, allow_unicode=True, sort_keys=False)
@@ -785,15 +802,14 @@ def write_test_plan(path, scenarios, module):
     testpoints = []
     for i, sc in enumerate(scenarios):
         tp = {
-            "id": f"TP_{i+1:04d}",
+            "id": "TP_" + str(i+1).zfill(4),
             "feature": sc.get("feature", "general"),
-            "description": sc.get("description", sc.get("name", f"Scenario {i+1}")),
+            "description": sc.get("description", sc.get("name", "Scenario " + str(i+1))),
             "stage": "v2_stress",
             "base_seq": sc.get("base_seq", ""),
             "stimulus": sc.get("stimulus", ""),
         }
         testpoints.append(tp)
-
     tp_data = {"module": module, "testpoints": testpoints}
     with open(path, "w", encoding="utf-8") as f:
         yaml.dump(tp_data, f, default_flow_style=None, allow_unicode=True, sort_keys=False)
@@ -801,10 +817,14 @@ def write_test_plan(path, scenarios, module):
 
 
 try:
-    module_name = spec_data.get("module_name", "unknown")
-    write_port_map(os.path.join(OUT_DIR, "port_map.yml"), interfaces, spec_data)
-    write_reg_map(os.path.join(OUT_DIR, "reg_map.yml"), register_map, module_name)
-    write_test_plan(os.path.join(OUT_DIR, "test_plan.yml"), all_scenarios, module_name)
+    module_name = data.get("module_name", "unknown")
+    write_port_map(os.path.join(OUT_DIR, "port_map.yml"), interfaces, data)
+    write_reg_map(os.path.join(OUT_DIR, "reg_map.yml"), registers, module_name)
+    write_test_plan(os.path.join(OUT_DIR, "test_plan.yml"), scenarios, module_name)
     print(f"  [INTERMEDIATE] 3 YAML files written to {OUT_DIR}/")
 except Exception as e:
     print(f"  [WARN] Intermediate file generation skipped: {e}")
+    import traceback
+    traceback.print_exc()
+
+    traceback.print_exc()
