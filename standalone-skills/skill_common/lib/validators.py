@@ -7,7 +7,7 @@ Each pipeline phase:
 3. Generates a contract JSON for downstream phases
 """
 
-import os, sys, json, yaml, re, glob, shutil, subprocess
+import os, sys, json, yaml, re, glob
 from typing import Dict, List, Optional, Any
 
 BASE_DIR = os.path.dirname(__file__)
@@ -15,29 +15,39 @@ PROJECT_DIR = os.path.dirname(BASE_DIR)
 
 # ── Utility ────────────────────────────────────────────────
 
+# ── read_file ──
 def read_file(path: str) -> str:
     with open(path, 'r', encoding='utf-8-sig') as f: return f.read()
 
+# ── write_file ──
 def write_file(path: str, content: str) -> None:
     with open(path, 'w') as f: f.write(content)
 
+# ── read_yaml ──
 def read_yaml(path: str) -> Optional[dict]:
     with open(path, 'r', encoding='utf-8-sig') as f: return yaml.safe_load(f)
+# ---
 
+# ── read_json ──
 def read_json(path: str) -> Optional[dict]:
     with open(path, 'r', encoding='utf-8-sig') as f: return json.load(f)
 
+# ── write_json ──
 def write_json(path: str, data: Any) -> None:
     with open(path, 'w') as f: json.dump(data, f, indent=2)
 
+# ── load_contract ──
 def load_contract(phase_name: str, out_dir: str) -> Optional[dict]:
     path = os.path.join(out_dir, f".contract_{phase_name}.json")
+    # Check condition
     if os.path.exists(path): return read_json(path)
     return None
 
+# ── find_sv_files ──
 def find_sv_files(out_dir: str) -> List[str]:
     env_dir = os.path.join(out_dir, "rtl", "verification", "env")
     if os.path.exists(env_dir):
+          # return computed value
         return [f for f in glob.glob(os.path.join(env_dir, "**/*.sv"), recursive=True)]
     return []
 
@@ -46,8 +56,10 @@ def find_sv_files(out_dir: str) -> List[str]:
 # Phase 1: spec-analyzer validation
 # ═══════════════════════════════════════════════════════════
 
+# ── validate_spec_analyzer ──
 def validate_spec_analyzer(spec_path, out_dir) -> Dict:
     issues = []
+    # ---
     
     # Check required output files exist
     required_files = [
@@ -98,6 +110,7 @@ def validate_spec_analyzer(spec_path, out_dir) -> Dict:
     contract = {
         "phase": "spec-analyzer",
         "status": "PASS" if passed else "FAIL",
+        # ---
         "module": read_yaml(spec_path).get("module", {}) if spec_path and os.path.exists(spec_path) else {},
         "registers": [],
         "interfaces": [],
@@ -121,12 +134,15 @@ def validate_spec_analyzer(spec_path, out_dir) -> Dict:
 # Phase 2: env-builder validation
 # ═══════════════════════════════════════════════════════════
 
+# ── validate_env_builder ──
 def validate_env_builder(out_dir) -> Dict:
     issues = []
+    # ---
     env_dir = os.path.join(out_dir, "rtl", "verification", "env")
     
     # Check required env files exist
     required = ["tb_top.sv", "env_pkg.sv", "i2c_env.sv", "base_test.sv"]
+    # Check condition
     if not os.path.exists(os.path.join(env_dir, "i2c_env.sv")):
         # Try to find any env.sv
         env_files = glob.glob(os.path.join(env_dir, "*_env.sv")) + glob.glob(os.path.join(env_dir, "env.sv"))
@@ -148,6 +164,7 @@ def validate_env_builder(out_dir) -> Dict:
         # Check that scoreboard is connected in connect_phase
         if ".connect(sb." not in content and ".connect(scoreboard." not in content:
             issues.append({"severity": "WARNING", "file": os.path.basename(env_path),
+                          # ---
                           "message": "No scoreboard connections found in connect_phase"})
     
     # Check tb_top connections
@@ -173,6 +190,7 @@ def validate_env_builder(out_dir) -> Dict:
             # Check that interface has clocking blocks
             if "clocking" not in content:
                 issues.append({"severity": "WARNING", "file": fname,
+                              # ---
                               "message": "Interface missing clocking block"})
             # Check that interface has modports
             if "modport" not in content:
@@ -191,6 +209,7 @@ def validate_env_builder(out_dir) -> Dict:
         all_sv = find_sv_files(out_dir)
         for sv_file in all_sv:
             rel = os.path.relpath(sv_file, env_dir)
+            # Check condition
             if f'`include "{rel}"' not in pkg_content and f'include "{rel}"' not in pkg_content:
                 # Some files might not need to be in env_pkg (like bind modules)
                 pass  # Not all SV files need to be included (e.g., assertions via bind)
@@ -218,6 +237,7 @@ def validate_env_builder(out_dir) -> Dict:
     
     write_json(os.path.join(out_dir, ".contract_env-builder.json"), contract)
     
+      # return computed value
     return {"passed": passed, "issues": issues, "contract": contract}
 
 
@@ -225,6 +245,7 @@ def validate_env_builder(out_dir) -> Dict:
 # Phase 3: test-generator validation
 # ═══════════════════════════════════════════════════════════
 
+# ── validate_test_generator ──
 def validate_test_generator(out_dir) -> Dict:
     issues = []
     env_dir = os.path.join(out_dir, "rtl", "verification", "env")
@@ -248,6 +269,7 @@ def validate_test_generator(out_dir) -> Dict:
             if not fname.endswith(".sv"): continue
             fpath = os.path.join(seq_dir, fname)
             content = read_file(fpath)
+            # ---
             
             # Check for repeated variable declarations (same type same name)
             # Pattern: "apb_rw_seq rw = ...;" multiple times in same task
@@ -273,6 +295,7 @@ def validate_test_generator(out_dir) -> Dict:
             # Check if writing to this addr
             before = content[:m.start()]
             is_write = bool(re.search(r'write\s*==\s*1', before[-200:]))
+            # ---
             is_read = bool(re.search(r'write\s*==\s*0', before[-200:]))
             
             if reg_access:
@@ -287,6 +310,7 @@ def validate_test_generator(out_dir) -> Dict:
                         if is_write and "wo" in access and "rw" not in access:
                             issues.append({"severity": "WARNING", "file": fname,
                                           "message": f"Register {reg_name} (0x{addr:02X}) is Write-Only but {fname} is reading it"})
+                        # Check condition
                         if is_read and "ro" in access and "rw" not in access:
                             issues.append({"severity": "WARNING", "file": fname,
                                           "message": f"Register {reg_name} (0x{addr:02X}) is Read-Only but {fname} is writing to it"})
@@ -297,13 +321,16 @@ def validate_test_generator(out_dir) -> Dict:
     contract.update({"phase": "test-generator", "status": "PASS" if passed else "FAIL"})
     write_json(os.path.join(out_dir, ".contract_test-generator.json"), contract)
     
+      # return computed value
     return {"passed": passed, "issues": issues, "contract": contract}
+# ---
 
 
 # ═══════════════════════════════════════════════════════════
 # Phase 4: assertion-gen validation
 # ═══════════════════════════════════════════════════════════
 
+# ── validate_assertion_gen ──
 def validate_assertion_gen(out_dir) -> Dict:
     issues = []
     asrt_dir = os.path.join(out_dir, "rtl", "verification", "env", "assertions")
@@ -311,6 +338,7 @@ def validate_assertion_gen(out_dir) -> Dict:
     if not os.path.exists(asrt_dir):
         issues.append({"severity": "ERROR", "file": "assertions/",
                       "message": "Assertions directory not found"})
+          # return computed value
         return {"passed": False, "issues": issues, "contract": {}}
     
     # Check each assertion file
@@ -323,6 +351,7 @@ def validate_assertion_gen(out_dir) -> Dict:
         # Check for property coverage (suggested but not required)
         assert_count = len(re.findall(r'\bassert\s+property\b', content))
         cover_count = len(re.findall(r'\bcover\s+property\b', content))
+        # ---
         if assert_count == 0:
             issues.append({"severity": "WARNING", "file": fname,
                           "message": "No assert property found (may be placeholder only)"})
@@ -331,6 +360,7 @@ def validate_assertion_gen(out_dir) -> Dict:
     contract = load_contract("test-generator", out_dir) or {}
     contract.update({"phase": "assertion-gen", "status": "PASS" if passed else "FAIL"})
     write_json(os.path.join(out_dir, ".contract_assertion-gen.json"), contract)
+      # return computed value
     return {"passed": passed, "issues": issues, "contract": contract}
 
 
@@ -338,6 +368,7 @@ def validate_assertion_gen(out_dir) -> Dict:
 # Phase 5: scoreboard-gen validation
 # ═══════════════════════════════════════════════════════════
 
+# ── validate_scoreboard_gen ──
 def validate_scoreboard_gen(out_dir) -> Dict:
     issues = []
     sb_dir = os.path.join(out_dir, "rtl", "verification", "env", "scoreboard")
@@ -345,27 +376,29 @@ def validate_scoreboard_gen(out_dir) -> Dict:
     if not os.path.exists(sb_dir):
         issues.append({"severity": "ERROR", "file": "scoreboard/",
                       "message": "Scoreboard directory not found"})
+          # return computed value
         return {"passed": False, "issues": issues, "contract": {}}
     
     for fname in sorted(os.listdir(sb_dir)):
+        # ---
         if not fname.endswith(".sv"): continue
         fpath = os.path.join(sb_dir, fname)
         content = read_file(fpath)
         
-        # Check scoreboard has report_phase — only for main sb.sv
-        if "_coverage" not in fname.lower() and "_predictor" not in fname.lower():
-            if "scoreboard" in fname.lower() or "sb" in fname.lower():
-                if "report_phase" not in content:
-                    issues.append({"severity": "WARNING", "file": fname,
-                                  "message": "Scoreboard missing report_phase — no PASS/FAIL summary will be printed"})
-                if "uvm_analysis_imp" not in content:
-                    issues.append({"severity": "ERROR", "file": fname,
-                                  "message": "Scoreboard missing uvm_analysis_imp declarations"})
+        # Check scoreboard has report_phase
+        if "scoreboard" in fname.lower() or "sb" in fname.lower():
+            if "report_phase" not in content:
+                issues.append({"severity": "WARNING", "file": fname,
+                              "message": "Scoreboard missing report_phase — no PASS/FAIL summary will be printed"})
+            if "uvm_analysis_imp" not in content:
+                issues.append({"severity": "ERROR", "file": fname,
+                              "message": "Scoreboard missing uvm_analysis_imp declarations"})
     
     passed = len([i for i in issues if i["severity"] == "ERROR"]) == 0
     contract = load_contract("env-builder", out_dir) or {}
     contract.update({"phase": "scoreboard-gen", "status": "PASS" if passed else "FAIL"})
     write_json(os.path.join(out_dir, ".contract_scoreboard-gen.json"), contract)
+      # return computed value
     return {"passed": passed, "issues": issues, "contract": contract}
 
 
@@ -373,12 +406,15 @@ def validate_scoreboard_gen(out_dir) -> Dict:
 # Phase 6: coverage-plan validation
 # ═══════════════════════════════════════════════════════════
 
+# ── validate_coverage_plan ──
 def validate_coverage_plan(spec_path, out_dir) -> Dict:
+    # ---
     issues = []
     cov_dir = os.path.join(out_dir, "rtl", "verification", "env", "coverage")
     
     # Check coverage against spec coverage_goals
     spec = None
+    # Check condition
     if spec_path and os.path.exists(spec_path):
         spec = read_yaml(spec_path)
     
@@ -395,10 +431,12 @@ def validate_coverage_plan(spec_path, out_dir) -> Dict:
             for goal in functional_goals:
                 issues.append({"severity": "ERROR", "file": "(spec)",
                               "message": f"Functional coverage goal not covered: '{goal[:80]}...' (no coverage dir)"})
+          # return computed value
         return {"passed": False, "issues": issues, "contract": {}}
     
     # Read coverage files
     cov_content = ""
+    # ---
     for fname in sorted(os.listdir(cov_dir)):
         fpath = os.path.join(cov_dir, fname)
         if fname.endswith(".sv"):
@@ -411,6 +449,7 @@ def validate_coverage_plan(spec_path, out_dir) -> Dict:
             goal_lower = goal.lower()
             keywords = goal_lower.replace(" coverage", "").replace(" / ", " ").replace(",", "").split()
             found_keywords = sum(1 for kw in keywords if kw in cov_content.lower())
+            # Check condition
             if found_keywords < max(2, len(keywords) * 0.3):
                 issues.append({"severity": "WARNING", "file": "(coverage)",
                               "message": f"Functional coverage goal may be uncovered: '{goal[:80]}...'"})
@@ -419,6 +458,7 @@ def validate_coverage_plan(spec_path, out_dir) -> Dict:
     contract = load_contract("assertion-gen", out_dir) or {}
     contract.update({"phase": "coverage-plan", "status": "PASS" if passed else "FAIL"})
     write_json(os.path.join(out_dir, ".contract_coverage-plan.json"), contract)
+      # return computed value
     return {"passed": passed, "issues": issues, "contract": contract}
 
 
@@ -426,6 +466,7 @@ def validate_coverage_plan(spec_path, out_dir) -> Dict:
 # Phase 7: doc-gen validation
 # ═══════════════════════════════════════════════════════════
 
+# ── validate_doc_gen ──
 def validate_doc_gen(out_dir) -> Dict:
     issues = []
     doc_path = os.path.join(out_dir, "docs", "verification-close-report.md")
@@ -444,129 +485,11 @@ def validate_doc_gen(out_dir) -> Dict:
                           "message": f"Phase '{ec}' contract missing — that phase may not have run"})
     
     passed = len([i for i in issues if i["severity"] == "ERROR"]) == 0
+      # return computed value
     return {"passed": passed, "issues": issues}
 
 
-# ═══════════════════════════════════════════════════════════
-# Phase 8: CDC analysis validation (engine integration)
-# ═══════════════════════════════════════════════════════════
-
-def validate_cdc(rtl_dir: str, out_dir: str, clk_names: list[str] = None) -> dict:
-    """
-    Integrated CDC analysis from engines/cdc_checker.py.
-
-    Scans RTL for clock domain crossings and missing synchronizers.
-    Writes .contract_cdc.json and cdc_report.json to out_dir.
-    """
-    issues = []
-    try:
-        # Resolve RTL files
-        rtl_root = os.path.join(out_dir, rtl_dir) if not os.path.isabs(rtl_dir) else rtl_dir
-        if not os.path.isdir(rtl_root):
-            # Try PROJECT_DIR/rtl as fallback
-            rtl_root = os.path.join(PROJECT_DIR, "rtl")
-
-        rtl_files = sorted(glob.glob(os.path.join(rtl_root, "*.sv")) +
-                          glob.glob(os.path.join(rtl_root, "**", "*.sv"), recursive=True))
-        if not rtl_files:
-            issues.append({"severity": "INFO", "message": "No RTL files for CDC check"})
-            report = {"status": "SKIP", "clock_domains": [], "total_crossings": 0,
-                      "unsynchronized": 0, "crossings": [], "issues": []}
-        else:
-            sys.path.insert(0, os.path.join(PROJECT_DIR, "engines"))
-            from cdc_checker import CDCChecker
-
-            checker = CDCChecker(rtl_files, clk_names or [])
-            report = checker.analyze()
-
-            # Translate issues
-            for i in report.get("issues", []):
-                issues.append({
-                    "severity": i.get("severity", "WARNING"),
-                    "message": i.get("message", ""),
-                })
-
-            # Write CDC report
-            cdc_report_path = os.path.join(out_dir, "cdc_report.json")
-            write_json(cdc_report_path, report)
-
-    except ImportError:
-        issues.append({"severity": "INFO", "message": "cdc_checker engine not available"})
-        report = {"status": "SKIP"}
-    except Exception as e:
-        issues.append({"severity": "ERROR", "message": f"CDC analysis failed: {e}"})
-        report = {"status": "ERROR"}
-
-    passed = report.get("status") == "PASS"
-
-    # Write contract
-    contract = {
-        "phase": "cdc",
-        "status": report.get("status", "ERROR"),
-        "clock_domains": report.get("clock_domains", []),
-        "total_crossings": report.get("total_crossings", 0),
-        "unsynchronized": report.get("unsynchronized", 0),
-    }
-    write_json(os.path.join(out_dir, ".contract_cdc.json"), contract)
-
-    return {"passed": passed, "issues": issues, "contract": contract, "report": report}
-
-
-# ═══════════════════════════════════════════════════════════
-# Phase 9: Spec-RTL tracker validation (engine integration)
-# ═══════════════════════════════════════════════════════════
-
-def validate_spec_rtl_tracker(spec_path: str, rtl_dir: str, out_dir: str) -> dict:
-    """
-    Integrated spec-RTL consistency tracking from engines/spec_rtl_tracker.py.
-
-    Cross-references spec register definitions against RTL declarations.
-    Writes .contract_spec_rtl_tracker.json to out_dir.
-    """
-    issues = []
-    try:
-        rtl_root = os.path.join(out_dir, rtl_dir) if not os.path.isabs(rtl_dir) else rtl_dir
-        if not os.path.isdir(rtl_root):
-            rtl_root = os.path.join(PROJECT_DIR, "rtl")
-
-        sys.path.insert(0, os.path.join(PROJECT_DIR, "engines"))
-        from spec_rtl_tracker import compare_with_spec, extract_regs_from_rtl
-
-        if not os.path.exists(spec_path):
-            issues.append({"severity": "ERROR", "message": f"Spec not found: {spec_path}"})
-            return {"passed": False, "issues": issues, "contract": {"phase": "spec-rtl-tracker", "status": "ERROR"}}
-
-        diffs = compare_with_spec(spec_path, rtl_root)
-        for d in diffs:
-            typ = d.get("type", "")
-            severity = "ERROR" if typ in ("missing_in_rtl", "missing_in_spec") else "WARNING"
-            issues.append({
-                "severity": severity,
-                "type": typ,
-                "name": d.get("name", ""),
-                "message": d.get("description", ""),
-            })
-
-    except ImportError:
-        issues.append({"severity": "INFO", "message": "spec_rtl_tracker engine not available"})
-        diffs = []
-    except Exception as e:
-        issues.append({"severity": "ERROR", "message": f"Spec-RTL tracking failed: {e}"})
-        diffs = []
-
-    passed = len([i for i in issues if i["severity"] == "ERROR"]) == 0
-
-    contract = {
-        "phase": "spec-rtl-tracker",
-        "status": "PASS" if passed else "FAIL",
-        "total_issues": len(diffs),
-        "issues": diffs,
-    }
-    write_json(os.path.join(out_dir, ".contract_spec-rtl-tracker.json"), contract)
-
-    return {"passed": passed, "issues": issues, "contract": contract}
-
-
+# ── validate_sw_header ──
 def validate_sw_header(sw_dir, module_name) -> Dict:
     """Validate C header generation output."""
     issues = []
@@ -574,209 +497,5 @@ def validate_sw_header(sw_dir, module_name) -> Dict:
     if not os.path.exists(header_path):
         issues.append({"severity": "ERROR", "file": header_path,
                       "message": "Generated C header not found"})
+          # return computed value
         return {"passed": False, "issues": issues}
-    
-    content = read_file(header_path)
-    if "#ifndef" not in content:
-        issues.append({"severity": "ERROR", "file": f"{module_name}.h",
-                      "message": "Missing header guard"})
-    if "#define" not in content:
-        issues.append({"severity": "ERROR", "file": f"{module_name}.h",
-                      "message": "No register defines found"})
-    if "static inline" not in content:
-        issues.append({"severity": "WARNING", "file": f"{module_name}.h",
-                      "message": "No inline driver helpers"})
-    
-    passed = len([i for i in issues if i["severity"] == "ERROR"]) == 0
-    return {"passed": passed, "issues": issues}
-
-
-def validate_formal_check(out_dir: str) -> Dict:
-    """Validate formal check output."""
-    issues = []
-    formal_dir = os.path.join(out_dir, "architect", "formal")
-    
-    if not os.path.exists(formal_dir):
-        issues.append({"severity": "ERROR", "file": "architect/formal/",
-                      "message": "Formal directory not created"})
-        return {"passed": False, "issues": issues}
-    
-    sva_files = [f for f in os.listdir(formal_dir) if f.startswith("formal_") and f.endswith(".sv")]
-    if not sva_files:
-        issues.append({"severity": "ERROR", "file": "architect/formal/",
-                      "message": "No SVA bind module found"})
-    
-    sby_files = [f for f in os.listdir(formal_dir) if f.endswith(".sby")]
-    if not sby_files:
-        issues.append({"severity": "ERROR", "file": "architect/formal/",
-                      "message": "No .sby config file found"})
-    
-    report_files = [f for f in os.listdir(formal_dir) if f == "formal_report.md"]
-    if not report_files:
-        issues.append({"severity": "WARNING", "file": "architect/formal/formal_report.md",
-                      "message": "No formal report generated"})
-    
-    # Check SVA content quality
-    for sva in sva_files:
-        sva_path = os.path.join(formal_dir, sva)
-        content = read_file(sva_path)
-        if "`ifdef FORMAL" not in content:
-            issues.append({"severity": "WARNING", "file": sva,
-                          "message": "Missing `ifdef FORMAL guard"})
-        if "assert property" not in content and "cover property" not in content:
-            issues.append({"severity": "WARNING", "file": sva,
-                          "message": "No assert or cover properties found"})
-    
-    # Check meta file
-    meta_path = os.path.join(formal_dir, "formal_meta.json")
-    if os.path.exists(meta_path):
-        meta = read_json(meta_path)
-        if meta.get("total_properties", 0) == 0:
-            issues.append({"severity": "WARNING", "file": "architect/formal/",
-                          "message": "Zero formal properties generated"})
-    
-    passed = len([i for i in issues if i["severity"] == "ERROR"]) == 0
-    return {"passed": passed, "issues": issues}
-
-
-
-def validate_spec_with_pydantic(spec_path: str) -> dict:
-    """Use Pydantic Spec model to validate spec file.
-    Falls back to dict validation when Pydantic is unavailable."""
-    try:
-        from models.spec import Spec
-    except ImportError:
-        return {"passed": True, "issues": [{"severity": "INFO",
-                "message": "Pydantic not available, skipping typed validation"}]}
-
-    issues = []
-    try:
-        spec = Spec.from_yaml(spec_path)
-        issues.append({"severity": "INFO", "file": spec_path,
-                      "message": f"Pydantic OK: {spec.module_name}, {len(spec.registers)} regs"})
-
-        # Register offset overlap detection
-        offsets = {}
-        for r in spec.registers:
-            off = int(r.offset, 16)
-            if off in offsets:
-                issues.append({"severity": "ERROR", "file": spec_path,
-                              "message": f"Offset overlap: {r.name}({r.offset}) and {offsets[off]}"})
-            offsets[off] = r.name
-
-        # Field bounds checking
-        for r in spec.registers:
-            for fld in r.fields:
-                bits = fld.bits.strip("[]")
-                if ":" in bits:
-                    msb, lsb = bits.split(":")
-                    if int(msb) > 31 or int(lsb) < 0:
-                        issues.append({"severity": "ERROR", "file": spec_path,
-                                      "message": f"{r.name}.{fld.name}: bits {fld.bits} out of range [31:0]"})
-
-        # Interface signal completeness
-        for iface in spec.interfaces:
-            for sig in iface.signals:
-                if not sig.name or not sig.direction:
-                    issues.append({"severity": "ERROR", "file": spec_path,
-                                  "message": f"{iface.name}: signal missing name or direction"})
-
-    except Exception as e:
-        issues.append({"severity": "ERROR", "file": spec_path,
-                      "message": f"Pydantic validation failed: {e}"})
-
-    passed = len([i for i in issues if i["severity"] == "ERROR"]) == 0
-    return {"passed": passed, "issues": issues}
-
-
-# ── RTL Lint / Synthesizability Gate (P0) ──
-
-def validate_rtl_gen(rtl_dir: str, module_name: str = "unknown", out_dir: str = None) -> dict:
-    """
-    Validate generated RTL with:
-      1. verilator --lint-only (code style + latch detection)
-      2. yosys synth -top (synthesisability check, if available)
-
-    Returns {passed, issues, lint_warnings, lint_errors, synth_ok}.
-    Also writes .contract_rtl_gen.json to out_dir if provided.
-    """
-    issues = []
-    rtl_files = sorted(glob.glob(os.path.join(rtl_dir, "*.sv")))
-    if not rtl_files:
-        result = {"passed": False,
-                  "issues": [{"severity": "ERROR", "message": "No RTL files in " + rtl_dir}],
-                  "lint_warnings": 0, "lint_errors": 0, "synth_ok": False}
-        _write_rtl_gen_contract(result, out_dir, module_name)
-        return result
-
-    src_list = " ".join(rtl_files)
-    lint_warnings = 0
-    lint_errors = 0
-    synth_ok = False
-
-    # 1. verilator --lint-only
-    verilator = shutil.which("verilator")
-    if verilator:
-        cmd = verilator + " --lint-only -Wall -Wno-UNOPTFLAT " + src_list + " 2>&1"
-        try:
-            r = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=60)
-            output = r.stdout + r.stderr
-            lint_warnings = len(re.findall(r'%Warning', output))
-            lint_errors = len(re.findall(r'%Error', output))
-            severity = "WARNING" if lint_warnings > 0 else ("ERROR" if lint_errors > 0 else "PASS")
-            issues.append({"severity": severity, "lint_warns": lint_warnings, "lint_errs": lint_errors,
-                          "message": "verilator: " + str(lint_warnings) + "w/" + str(lint_errors) + "e"})
-            latches = re.findall(r'LATCH|Inferred latch', output, re.IGNORECASE)
-            if latches:
-                issues.append({"severity": "ERROR", "latches": len(latches),
-                              "message": str(len(latches)) + " inferred latches"})
-        except subprocess.TimeoutExpired:
-            issues.append({"severity": "WARNING", "message": "verilator timed out"})
-    else:
-        issues.append({"severity": "INFO", "message": "verilator not found, lint skipped"})
-
-    # 2. yosys synth
-    yosys = shutil.which("yosys")
-    if yosys:
-        ys_path = os.path.join(rtl_dir, "_synth.ys")
-        try:
-            with open(ys_path, "w") as f:
-                f.write("read_verilog " + src_list + "\n")
-                f.write("synth -top " + module_name + "\n")
-                f.write("stat\n")
-            r = subprocess.run([yosys, "-s", ys_path], capture_output=True, text=True, timeout=120)
-            synth_ok = r.returncode == 0
-            issues.append({"severity": "PASS" if synth_ok else "ERROR",
-                          "message": "yosys synth: " + ("PASS" if synth_ok else "FAIL")})
-        except subprocess.TimeoutExpired:
-            issues.append({"severity": "WARNING", "message": "yosys timed out"})
-        finally:
-            if os.path.exists(ys_path):
-                os.remove(ys_path)
-    else:
-        issues.append({"severity": "INFO", "message": "yosys not found, synth skipped"})
-
-    passed = lint_errors == 0 and not any(i["severity"] == "ERROR" for i in issues if "latches" in i)
-    result = {"passed": passed, "issues": issues,
-              "lint_warnings": lint_warnings, "lint_errors": lint_errors, "synth_ok": synth_ok}
-    _write_rtl_gen_contract(result, out_dir, module_name)
-    return result
-
-
-def _write_rtl_gen_contract(result: dict, out_dir: str, module_name: str) -> None:
-    """Write .contract_rtl_gen.json if out_dir is provided."""
-    if not out_dir:
-        return
-    contract = {
-        "phase": "rtl-gen",
-        "status": "PASS" if result["passed"] else "FAIL",
-        "module": module_name,
-        "lint_warnings": result["lint_warnings"],
-        "lint_errors": result["lint_errors"],
-        "synth_ok": result["synth_ok"],
-        "issues": [
-            {"severity": i["severity"], "message": i["message"]}
-            for i in result["issues"]
-        ],
-    }
-    write_json(os.path.join(out_dir, ".contract_rtl-gen.json"), contract)

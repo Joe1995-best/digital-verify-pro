@@ -14,6 +14,17 @@ _ce.json
 _tmp.json
 *_quality.json
 
+# Temp regression/reports
+regression_summary.json
+coverage_all_ips.json
+.contract_*.json
+
+# Chk/checkpoint temp files
+*.chk
+
+# Contract artifacts
+contract_*.json
+
 # Temp format check files
 fmt_check.*
 fmt_*.*

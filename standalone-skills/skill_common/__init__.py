@@ -217,3 +217,6 @@ def common_args(description: str = "") -> argparse.ArgumentParser:
     parser.add_argument("--result", type=str, default="result.json",
                         help="Path to write result.json")
     return parser
+
+# Re-export shared lib modules for convenience
+from .lib import validators, template_engine, questa_vcs_support

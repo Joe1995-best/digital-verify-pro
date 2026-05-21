@@ -1,0 +1,67 @@
+{
+  "$schema": "https://digital-verify-pro.dev/schemas/skill_spec.v1.json",
+  "name": "fault-injector",
+  "version": "1.0.0",
+  "lifecycle": {
+    "status": "development",
+    "last_reviewed": "2026-05-21"
+  },
+  "quality_score": 15.0,
+  "description": "Fault injection plan generator. Currently generates injection plans (bus_hang, reset_glitch, SEU) as JSON — does NOT perform actual DPI/PLI-level force/release. Requires manual review and simulator PLI/DPI hooks for execution.",
+  "interface": {
+    "entry": "fault_injector.py",
+    "signature": [
+      {
+        "name": "--out",
+        "type": "path",
+        "required": false,
+        "default": "fault_injection_plan.json",
+        "help": "Output plan JSON path"
+      },
+      {
+        "name": "--seed",
+        "type": "int",
+        "required": false,
+        "default": 42,
+        "help": "Random seed for SEU bit selection"
+      },
+      {
+        "name": "--iterations",
+        "type": "int",
+        "required": false,
+        "default": 10,
+        "help": "Injection attempts per fault mode"
+      }
+    ]
+  },
+  "inputs": {
+    "files": {},
+    "parameters": {
+      "seed": {"type": "int", "default": 42},
+      "iterations": {"type": "int", "default": 10}
+    }
+  },
+  "outputs": {
+    "fault_injection_plan": {
+      "path": "{out}",
+      "format": "JSON",
+      "schema_reference": "schemas/fault_plan.v1.schema.json"
+    }
+  },
+  "dependencies": {
+    "upstream": [],
+    "downstream": [],
+    "tools": ["vcs", "questa", "xrun"],
+    "python_packages": []
+  },
+  "resource_limits": {
+    "timeout_seconds": 30,
+    "memory_mb": 256
+  },
+  "error_codes": {
+    "0": {"name": "SUCCESS", "fix": null},
+    "1": {"name": "INPUT_ERROR", "fix": "Check arguments"},
+    "3": {"name": "RUNTIME_ERROR", "fix": "See traceback"}
+  },
+  "tags": ["fault-injection", "stub", "plan-generator"]
+}

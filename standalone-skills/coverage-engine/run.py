@@ -19,7 +19,7 @@ def parse_args(argv=None):
     ap.add_argument("--log-level", default="info", choices=["debug", "info", "warn", "error"],
                     help="Log level")
     ap.add_argument("--result", type=Path, default=None, help="result.json path override")
-        ap.add_argument("--vcd", type=Path, required=True, help="VCD waveform file")
+    ap.add_argument("--vcd", type=Path, required=True, help="VCD waveform file")
     ap.add_argument("--report", type=Path, default=Path("coverage_report.json"), help="Output report path")
     return ap.parse_args(argv)
 
@@ -50,9 +50,13 @@ def main(argv=None) -> int:
         engine = CoverageEngine(args.vcd)
         engine.parse()
         report = engine.analyze()
+        report_dict = report.to_dict() if hasattr(report, 'to_dict') else {}
+        # Define paths BEFORE result dict construction
         report_path = out_dir / args.report
         report_path.write_text(json.dumps(report.to_dict(), indent=2))
-        report_dict = report.to_dict() if hasattr(report, 'to_dict') else {}
+        result_path = out_dir / "result.json"
+        if args.result:
+            result_path = Path(args.result)
         result = {
             "status": "pass",
             "summary": f"{report.total_signals} signals, {report.toggle_coverage:.1f}% toggle, {report.stuck_signals} stuck",
@@ -63,8 +67,8 @@ def main(argv=None) -> int:
                 "duration_seconds": getattr(report, 'duration', 0),
             },
             "outputs": {
-                "coverage_report": str(report_path) if 'report_path' in dir() else "",
-                "result_json": str(result_path) if 'result_path' in dir() else "",
+                "coverage_report": str(report_path),
+                "result_json": str(result_path),
             }
         }
     except Exception as e:
@@ -75,9 +79,13 @@ def main(argv=None) -> int:
         return ExitCode.RUNTIME_ERROR
     
     # 4. Write outputs
-    result_path = out_dir / "result.json"
+    # result_path is defined inside try (before result dict) and also
+    # needs to be available here for the write_result call.
+    # Use a local variable with fallback.
+    _result_path = locals().get("result_path", out_dir / "result.json")
     if args.result:
-        result_path = Path(args.result)
+        _result_path = Path(args.result)
+    result_path = _result_path
     
     write_result(
         status=result.get("status", "pass"),

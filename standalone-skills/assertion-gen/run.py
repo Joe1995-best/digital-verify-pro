@@ -44,14 +44,10 @@ def main(argv=None) -> int:
     
     # 3. Execute core logic
     try:
-                from run_assertion_gen import main as ag_main
+        from run_assertion_gen import main as ag_main
         ag_main()
         sva_files = list(out_dir.rglob("*assert*.sv")) if out_dir.exists() else []
-        sva_files = list(out_dir.rglob("*assert*.sv")) if out_dir.exists() else []
-        sva_files = list(out_dir.rglob("*assert*.sv")) if out_dir.exists() else []
         result = {"status": "pass", "summary": f"Assertions: {len(sva_files)} SVA files",
-                   "metrics": {"assertions": len(sva_files)}, "outputs": {"dir": str(out_dir)}}
-                   "metrics": {"assertions": len(sva_files)}, "outputs": {"dir": str(out_dir)}}
                    "metrics": {"assertions": len(sva_files)}, "outputs": {"dir": str(out_dir)}}
     except Exception as e:
         logger.exception("Runtime error")
